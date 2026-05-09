@@ -4,9 +4,23 @@
 
 iPad-native app for children ages 5–10 that turns a child's private nightly conversation with a persistent AI companion into a personalized, fully illustrated 5–8 page storybook the child can choose to share with a parent or trusted family member as bedtime reading.
 
-This repo is the MVP scaffold. **Production target is iPad-only per PRD scope** (`docs/prd.md` §Scope). The web build runs on `localhost` for development and review only — it is not the shipped product. iOS is the production target.
+This repo is the MVP scaffold. **Production target is iPad-only per PRD scope** (`docs/prd.md` §Scope). The web build runs on `localhost` for development and review only — it is not the shipped product.
 
-> **Status:** scaffold. AI conversation and illustrations are stubbed behind a swappable `AIProvider`. The safety classifier is a regex stub awaiting clinician review. PRD captured at `docs/prd.md` (truncated mid-NFR-3 in the source paste).
+> **Status:** scaffold. AI conversation and illustrations are stubbed behind a swappable `AIProvider`. The safety classifier is a regex stub awaiting clinician review. **Full PRD v1.0 captured at `docs/prd.md`** — vision, problem, scope, F-1..F-20, NFR-1..NFR-4, technical architecture, data model, pricing, phasing, risks, iOS specifics, offline UX, accessibility, analytics, research foundation, competitive landscape.
+
+### Architecture divergence: scaffold vs. production target
+
+This is intentional and called out so it's not a surprise:
+
+| Layer       | Scaffold (this repo)                                  | PRD v1.0 production target                                       |
+| ----------- | ----------------------------------------------------- | ---------------------------------------------------------------- |
+| Frontend    | Expo (React Native + RN Web), TypeScript              | Native Swift / SwiftUI on iPadOS                                  |
+| Backend     | None (everything client-side, AsyncStorage)           | Node.js or Python FastAPI on managed cloud                        |
+| Database    | None                                                  | PostgreSQL primary, Redis cache, S3-compatible object storage     |
+| Hosting     | Local                                                 | AWS or GCP, US regions for COPPA residency                        |
+| AI / images | Stub `StubAIProvider` (no network, deterministic)     | Real LLM + image model behind same `AIProvider` shape, with batching, $0.50/session cap |
+
+Why scaffold in Expo when the PRD calls for native Swift: it lets you experience the full child + parent flow (mood → conversation → storybook → sharing → red-zone path) on a browser at `localhost` and on an iPad via Expo Go in minutes, without a Mac toolchain or a backend. The PRD's Swift/SwiftUI direction is right for production — for performance, App Store Kids Category eligibility, and access to Speech / AVFoundation / FamilyControls — but the scaffold's job is fastest-possible review of the product idea, not shippable code.
 
 ## Run it
 
@@ -102,29 +116,47 @@ Production replaces the regex with a clinician-reviewed classifier behind the sa
 
 In the conversation screen, type a phrase like `"I want to die"` or `"my stepdad hits me"`, then generate the storybook. Visit the **Parent dashboard** from the splash screen — the alert, conversation starters, and 988 call/chat links will be visible, and the book is surfaced regardless of the child's sharing choice. (Stub demo of the threshold behavior; do not interpret the regex as a clinical instrument.)
 
-## Known gaps from PRD v1.0
+## Known gaps vs. PRD v1.0
 
-The PRD source paste is being delivered in chunks. Sections after NFR-4 (technical architecture, data model, dependencies, risks, milestones, open questions) are not yet captured. Items still missing or stubbed:
+The full PRD is now captured in `docs/prd.md`. Items still missing or stubbed:
 
-1. Remaining PRD sections after NFR-4.
-2. **COPPA verifiable parental consent (F-1, NFR-3)** — credit card transaction verification not implemented. Required under the FTC's updated rules effective June 2025; non-compliance fines run up to $50K per violation. Engage a COPPA consultant or pursue kidSAFE certification before launch.
-3. **Encryption at rest (NFR-3)** — `AsyncStorage` is not encrypted on web or iOS. Move child-touching fields to `expo-secure-store` or a server-side store with field-level encryption before launch. Flagged inline in `src/storage.ts`.
-4. **US-region data residency (NFR-3)** — backend not built; pin region selection in IaC when it is.
-5. **Sign in with Apple (NFR-2)** — auth not implemented.
-6. **Apple Kids Category compliance (NFR-4)** — no parental gate on outbound links from child surfaces, no Apple-only analytics framework wired, no Family Sharing / Ask to Buy. Apple's updated age-rating questionnaire takes effect fall 2025; design for Kids Category from day one.
-7. **Trusted-circle account provisioning (F-15)** — emails captured during setup but no invitation/account flow built.
-8. **Trusted-circle delivery (F-8)** — push/email/web view delivery is stubbed; child's sharing choices are saved locally only.
-9. **Persona persistence across sessions (F-13)** — personality, quirks, conversation history. Currently only the persona ID persists.
-10. **Reading-level adaptation (F-16)** — `readingLevel` field exists; no adaptation logic.
-11. **Photo-informed character description (F-6)** — no upload, no character-consistency layer.
-12. **Real image generation** — pages render as emoji + palette placeholders.
-13. **Collaborative session mode (F-12)** — invite button is a placeholder; AI role-shift not implemented.
-14. **Voice in/out** for the visual-first 5–7 tier (F-4).
-15. **Connectivity-loss handling (F-19)**, **per-session $0.50 cap (F-20)** — interface seam exists; enforcement does not.
-16. **Clinical advisory review queue (F-11)** — `consecutiveAmberSessions` counter tracked on the child profile; the queue itself is not built.
-17. **Soft-launch instrumentation** — clinician-review pipeline, false-positive labeling, retention/completion/sharing-rate dashboards.
-18. **Locked illustration style and persona visual reference** — not defined.
-19. **iPad bedtime UI polish** — reduced blue light awareness, large touch targets are partially honored; warm palette is in place.
+**Production architecture (PRD §Technical Architecture)**
+
+1. **Native Swift / SwiftUI iPadOS app** — scaffold is Expo. Reimplement frontend in Swift before Phase Three.
+2. **Backend API (Node or FastAPI)** — none. Session orchestration, persona state, storybook assembly, trusted-circle, safety routing all run client-side.
+3. **PostgreSQL + JSON columns**, **Redis**, **S3 + CDN** — none provisioned.
+4. **US-region hosting (AWS or GCP)** — not provisioned; pin region in IaC when standing up.
+
+**Compliance and platform (PRD §NFR-3, §NFR-4, §iOS Specifics)**
+
+5. **COPPA verifiable parental consent (F-1, NFR-3)** — credit card transaction verification not implemented. Required under the FTC's updated rules effective June 2025; non-compliance fines up to $50K per violation. Engage a COPPA consultant or pursue kidSAFE certification before launch.
+6. **Encryption at rest (NFR-3)** — `AsyncStorage` is not encrypted on web or iOS. Move child-touching fields to `expo-secure-store` or a server-side store with field-level encryption before launch. Flagged inline in `src/storage.ts`.
+7. **Sign in with Apple (NFR-2)** — auth not implemented.
+8. **Apple Kids Category compliance (NFR-4, §iOS Specifics)** — parental gate on outbound links from child surfaces, Apple-only analytics framework, Family Sharing for the family tier, Ask to Buy. Apple's updated age-rating questionnaire takes effect fall 2025.
+
+**Core flows (PRD §Functional Requirements)**
+
+9. **Trusted-circle account provisioning (F-15)** — emails captured during setup; invitation, account creation, and view-only access not built.
+10. **Trusted-circle delivery (F-8)** — push / email / mobile-web-view delivery is stubbed; child's sharing choices are saved locally only.
+11. **Persona persistence across sessions (F-13)** — personality, quirks, conversation history. Currently only the persona ID persists.
+12. **Reading-level adaptation (F-16)** — `readingLevel` field exists; no adaptation logic.
+13. **Photo-informed character description (F-6)** — no upload, no character-consistency layer.
+14. **Real image generation (F-6)** — pages render as emoji + palette placeholders. Production needs a locked illustration style + IP-Adapter or reference-image conditioning to keep the persona visually consistent.
+15. **Collaborative session mode (F-12)** — invite button is a placeholder; AI facilitator/step-back role-shift not implemented.
+16. **Voice in / out (F-4)** for the visual-first 5–7 tier; Apple Speech + AVFoundation in production.
+17. **Connectivity-loss handling (F-19)** — local conversation save + persona-consistent retry message ("I'm still working on our story…").
+18. **Per-session $0.50 cap (F-20)** — interface seam exists; enforcement (token / image budgets, graceful wrap) does not.
+19. **Clinical advisory review queue (F-11)** — `consecutiveAmberSessions` counter tracked on the child profile; the queue itself is not built.
+20. **MoodEntry as a separate record (PRD §Data Model)** — currently mood lives on `Session` only; PRD calls for a standalone `MoodEntry` with optional post-conversation mood for longitudinal pattern detection.
+
+**Pricing, business, ops (PRD §Pricing, §Risks, §Analytics)**
+
+21. **Subscription tiers** — Free / Standard $9.99 / Family $14.99 not implemented. No StoreKit, no entitlements gating session count, persona set, or trusted-circle size.
+22. **Content moderation pipeline** — secondary moderation pass on generated narrative before it lands in the storybook (per §Risks: AI Hallucination).
+23. **First-party aggregated analytics** (PRD §Analytics Respecting Child Privacy) — none. Per-child data must never surface in dashboards except aggregated and anonymized.
+24. **Soft-launch instrumentation** — clinician-review pipeline, false-positive labeling, retention / completion / sharing-rate cohort dashboards, color-blind testing for mood icons.
+25. **Accessibility (PRD §Accessibility)** — partial. WCAG 2.1 AA target needs full VoiceOver pass on parent surfaces, Dynamic Type, high-contrast mode, haptics, color-blind-safe mood palette, synthesized-speech reader for storybook text.
+26. **Graceful sunsetting** (PRD §Risks: Over-Attachment) — "goodbye book" flow when a family cancels; not implemented.
 
 These are tracked so the next pass has a concrete punch list.
 

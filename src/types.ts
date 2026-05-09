@@ -1,5 +1,17 @@
-// Core domain types for Storytime Sanctuary.
+// Core domain types for Bedtime Storybook Companion (working title).
 // Kept deliberately small for the MVP scaffold — extend as the product grows.
+//
+// Mapping to PRD v1.0 §Data Model entities:
+//   ParentProfile        → ParentAccount
+//   ChildProfile         → ChildProfile
+//   Persona              → Persona
+//   Session              → Session (turns + mood + collaborators)
+//   Storybook            → Storybook
+//   StorybookPage        → Page
+//   TrustedCircleMember  → TrustedCircleMember
+//   SafetyAlert          → SafetyEvent
+//   (Mood is captured on Session; a standalone MoodEntry record is not
+//    yet broken out — see README gap "MoodEntry as separate record")
 
 export type PersonaId = 'dog' | 'aunt' | 'plant' | 'owl';
 

@@ -211,6 +211,138 @@ As a ten-year-old, I open the app and see a more minimal check-in screen. I tap 
 
 **NFR-4: Apple Kids Category Compliance.** No third-party advertising, no links out of the app without a parental gate, no data collection beyond what's disclosed and consented to. Apple's new age rating system takes effect fall 2025 with an updated questionnaire covering in-app controls, app capabilities, and wellness content. Design for Kids Category from day one, not as a retrofit. Use only Apple's own analytics frameworks.
 
-> [TRUNCATED IN PASTE — paste rest of NFRs (if any), plus technical
-> architecture, data model, dependencies, risks, milestones, and open
-> questions sections.]
+---
+
+## Technical Architecture and Stack
+
+**Frontend:** Native iOS app built in Swift and SwiftUI, targeting iPadOS. SwiftUI provides the declarative UI layer for mood check-in screens, persona selection, conversation interface, and storybook reader. Warm bedtime palette as default. Native is required over hybrid for performance, App Store Kids Category compliance, and access to Apple frameworks including Speech, AVFoundation for audio, and FamilyControls.
+
+**Backend:** Lightweight API layer in Node.js or Python with FastAPI, hosted on managed cloud. Handles session orchestration, persona state management, storybook assembly, trusted circle management, and safety event routing. Sits between the client and AI providers, managing prompt construction, response parsing, and content moderation.
+
+**Database:** PostgreSQL as primary relational store for accounts, child profiles, persona configurations, trusted circle members, session metadata, and safety events. Document store or JSON column approach for conversation transcripts and storybook content. Redis for session state caching and rate limiting.
+
+**Hosting:** AWS or GCP. Managed container service for API layer, managed PostgreSQL, S3-compatible object storage for generated storybook images, CDN for image delivery. All infrastructure in US regions for COPPA data residency.
+
+**File Storage:** S3-compatible object storage for illustration assets. Each storybook generates five to eight images. Estimated storage per active child: 50 to 100 MB per month at nightly use.
+
+---
+
+## Data Model
+
+**ParentAccount:** Authentication credentials, email, subscription status, consent records. One parent account can have multiple child profiles.
+
+**ChildProfile:** Linked to ParentAccount. Child's first name, age or date of birth, optional uploaded photos for illustration personalization, current persona selection, interaction tier based on age, reading level estimate that updates over time.
+
+**Persona:** Template definition for each curated companion. Name, personality description, visual reference prompt for illustration consistency, conversation style parameters, tone-adaptation map that adjusts warmth, energy, and vocabulary based on mood check-in.
+
+**Session:** One nightly interaction. Links to ChildProfile and Persona. Contains mood check-in selection, timestamp, conversation transcript as structured turns, collaborative mode flag, reference to generated Storybook, safety flag field.
+
+**Storybook:** Output artifact of a Session. Title, sequence of Pages, sharing status, metadata on which trusted circle members have viewed it.
+
+**Page:** Belongs to a Storybook. Narrative text, illustration prompt used, generated image URL, page order.
+
+**TrustedCircleMember:** Linked to ParentAccount. Name, relationship label, contact method for sharing, authentication status. Parent defines and modifies this list.
+
+**SafetyEvent:** Created on safety threshold trigger. Links to Session. Trigger classification, triggering content, timestamp, parent notification status, child disclosure status, AI-generated conversation starters delivered to parent.
+
+**MoodEntry:** Lightweight record linked to ChildProfile and Session. Emoji selection, timestamp, optional post-conversation mood. Powers longitudinal pattern detection feeding the safety system.
+
+---
+
+## Pricing and Business Model
+
+Monthly subscription paid by the parent.
+
+**Free Tier:** Two sessions per week, basic illustration style, one trusted circle member. Lets parents experience the product before committing. AI costs roughly $2 to $3 per free user per month, sustainable as customer acquisition cost equivalent.
+
+**Standard Tier at $9.99 per month:** Nightly sessions, full illustration quality, up to five trusted circle members, full persona selection.
+
+**Family Tier at $14.99 per month:** Up to three child profiles, unlimited trusted circle members, priority storybook generation.
+
+**Per-Session Cost Ceiling:** Capped at 50 cents. If a conversation runs long or generates extra illustrations, system gracefully wraps rather than exceeding ceiling. At $9.99 with nightly use, margins are thin — $7.50 to $10.50 in variable AI costs. Family tier with multiple children offers healthier margins per household. Cost optimization through model selection and image generation batching will matter.
+
+**Future Revenue (not MVP):** Print-on-demand physical storybooks, premium persona packs, gift subscriptions for grandparents and family, B2B licensing to pediatric therapy practices.
+
+---
+
+## Phasing and Milestones
+
+**Phase One — Foundation, 8 to 10 weeks:** Parent account and child profile creation, COPPA consent flow, emoji mood check-in screen, single persona (the dog) with basic conversation, storybook generation with static illustration style, basic sharing to one trusted circle member. Goal: working end-to-end loop — child taps mood, talks to dog, gets a book, shares with parent.
+
+**Phase Two — Core Experience, 6 to 8 weeks after Phase One:** Full curated persona set, age-adaptive interaction tiers, collaborative mode invite button, trusted circle expansion, persona persistence across sessions, amber-zone pattern detection.
+
+**Phase Three — Safety and Polish, 6 weeks:** Full three-tier safety system with red-zone mandatory disclosure, clinical advisory review of all safety language and criteria, longitudinal mood journal and pattern detection, reading level adaptation, App Store submission and Kids Category compliance review.
+
+**Phase Four — Soft Launch, 4 weeks:** Limited release to 20 to 30 families through personal networks. Validate nightly usage loop, test safety system accuracy against real conversations, gather parent and child feedback on storybook quality, measure retention and session frequency.
+
+---
+
+## Risks and Mitigations
+
+**Child Safety Failure:** Missed crisis has severe and potentially legal consequences. Mitigation: conservative classifier tuning biased toward sensitivity, mandatory clinical advisory review before launch, quarterly audits of flagged and unflagged sessions, liability disclaimer that app is not a substitute for professional mental health care.
+
+**COPPA Non-Compliance:** Fines up to $50,000 per violation under 2025 rules. Mitigation: verifiable parental consent from day one, data minimization, no third-party data sharing, consider COPPA compliance consultant or kidSAFE certification.
+
+**AI Hallucination or Inappropriate Content:** Bedtime stories must never contain violent, sexual, or frightening content. Mitigation: aggressive content filtering on all AI outputs, restricted vocabulary and topic set in system prompt, secondary moderation pass on generated narrative before it reaches the storybook, human review of random sample during soft launch.
+
+**Illustration Inconsistency:** Persona doesn't look the same across sessions or pages. MVP mitigation: locked style descriptions and character reference blocks. V2: IP-Adapter or reference-image conditioning. Accept some MVP variability and frame it as handmade storybook aesthetic.
+
+**Apple App Store Rejection:** Kids Category has strict requirements. Apple overhauling age rating system fall 2025. Mitigation: design for Kids Category from day one, no third-party SDKs transmitting device or user data, Apple analytics frameworks only.
+
+**Parent Trust and Adoption:** Parents uncomfortable with AI conversational companion for children. Mitigation: transparent onboarding explaining what AI does and doesn't do, sanctuary model as trust anchor, storybook as tangible proof — parent sees output without seeing process.
+
+**Over-Attachment to AI Persona:** Child may experience distress if service is interrupted or family cancels. Mitigation: persona is companion to the child's storytelling, not replacement for human relationships. Collaborative mode and family sharing keep human connection central. Graceful sunsetting if family cancels — a final story, a goodbye book.
+
+---
+
+## iOS Specifics
+
+Native Swift and SwiftUI, not hybrid or web wrapper. Target iPadOS as primary platform. iPhone is v2 — storybook benefits from larger screen. Kids Category compliance: no third-party advertising, no external links without parental gate, no undisclosed data collection, no third-party analytics SDKs. Explore Family Sharing for family tier — single subscription across devices in same iCloud family. Apple's fall 2025 age rating system requires updated questionnaire on in-app controls, capabilities, and wellness content. Plan for additional review given emotional and wellness content.
+
+---
+
+## Offline and Failure UX
+
+Lost connectivity mid-session: app saves conversation state locally, child continues with pre-generated prompts until connection restores. Storybook generation requires network — if it fails, persona delivers a warm message like "I'm still working on our story, it'll be ready when you wake up" and queues for retry. Previously generated storybooks cached locally for offline re-reading. Parent shouldn't need Wi-Fi to read last night's book.
+
+---
+
+## Accessibility
+
+Target WCAG 2.1 AA. Full VoiceOver support on parent-facing screens. Child interface supports Dynamic Type, high-contrast mode for mood icons, haptic feedback on taps. Mood check-in includes accessible labels for assistive technology. All storybook text available as synthesized speech via Apple's built-in synthesis for pre-literate children or those with reading difficulties. Color choices tested for color-blind accessibility, especially mood check-in where color carries emotional meaning.
+
+---
+
+## Analytics Respecting Child Privacy
+
+No third-party analytics SDKs. All analytics first-party via app's backend, aggregated so no individual child is identifiable. Metrics: session frequency and duration aggregated and anonymized, mood check-in distribution across user base not per child, storybook completion rate, sharing rate by relationship type not identity, collaborative mode activation rate, safety trigger rate by tier reviewed only by clinical advisory board, persona selection distribution, retention by weekly and monthly cohort. Individual data stays in session and safety models, never surfaced in dashboards except aggregated and anonymized.
+
+---
+
+## Research Foundation
+
+**Bibliotherapy:** Clinical tradition of therapeutic storytelling with children. Montgomery and Maunders 2015 systematic review of eight RCTs, children five to sixteen, found small to moderate effect sizes on internalizing behaviors, externalizing behaviors, and prosocial behaviors. Lenzi December 2025 review found bibliotherapy may reduce ACE-related outcomes including anxiety, grief, and PTSD while enhancing emotional competence.
+
+**Emotion Vocabulary Development:** Bar-Ilan University longitudinal study, ages four to sixteen. Lexicon roughly doubles every two years between four and eleven, then plateaus. Directly informs age-adaptive interaction tiers.
+
+**Advanced Theory of Mind:** Longitudinal study of 161 children. Around age seven, children begin grasping recursive mental states. Shapes what emotional processing the AI can support at different ages.
+
+**Self-Regulation and Peer Experience:** 2023 study of over 1,600 children ages six to eleven showing bidirectional loop between adverse peer experiences and self-regulation. A cycle a well-designed AI companion could help interrupt.
+
+**Developmentally Aligned Design:** Nomisha Kurian at Cambridge, design principles for children's AI, identified empathy gap in how AI responds to children's disclosures. Underscores importance of clinical advisory involvement.
+
+**Children and Voice Interfaces:** 2024 Nature study, children use higher pitch and longer pauses talking to devices, expect to be misunderstood. Supports visual-first design for younger children.
+
+**Emotion Regulation App Research:** 2022 study on Eda app, children ten to twelve responded well to participatory design and wanted agency in how the tool worked. Informs reduced gamification for older end of age range.
+
+---
+
+## Competitive Landscape
+
+**TaleTuck, launched 2026:** Parents record a voice sample, app generates stories narrated in parent's voice. Parent-driven, child is passive listener.
+
+**Storynite, launched 2025:** Takes parent-inputted daily highlights, generates illustrated stories with child as protagonist. Parent-driven, child receives but doesn't create.
+
+**Artemis AI:** Users select hero, setting, and moral to generate stories and cover art. Template-based, not conversational.
+
+None of these products treat the child as the author. In all three, the parent or a template drives the content and the child receives a story someone else shaped. This product is fundamentally different because the child's own private conversation is the generative engine. The child is the author. That's the moat.
