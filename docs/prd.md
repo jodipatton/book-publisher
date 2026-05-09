@@ -207,8 +207,10 @@ As a ten-year-old, I open the app and see a more minimal check-in screen. I tap 
 
 **NFR-2: Security.** All data encrypted at rest and in transit. All infrastructure in US regions for COPPA data residency. Authentication via email/password or Sign in with Apple.
 
-**NFR-3: COPPA Compliance.** Verifiable parental consent implemented from day one via credit card transaction verification.
+**NFR-3: COPPA Compliance.** COPPA-compliant data handling for all child voice data, conversation transcripts, and storybook content. This includes verifiable parental consent using credit card verification at signup under the updated FTC rules effective June 2025. Data minimization — collect only what's necessary for the product to function. Encryption at rest and in transit. All infrastructure in US regions for data residency. No child data shared with third parties. No third-party analytics SDKs. Consider engaging a COPPA compliance consultant or pursuing kidSAFE certification. Fines for non-compliance run up to $50,000 per violation under the 2025 rules.
 
-> [TRUNCATED IN PASTE — paste rest of NFR-3 onward here, plus any technical
+**NFR-4: Apple Kids Category Compliance.** No third-party advertising, no links out of the app without a parental gate, no data collection beyond what's disclosed and consented to. Apple's new age rating system takes effect fall 2025 with an updated questionnaire covering in-app controls, app capabilities, and wellness content. Design for Kids Category from day one, not as a retrofit. Use only Apple's own analytics frameworks.
+
+> [TRUNCATED IN PASTE — paste rest of NFRs (if any), plus technical
 > architecture, data model, dependencies, risks, milestones, and open
 > questions sections.]

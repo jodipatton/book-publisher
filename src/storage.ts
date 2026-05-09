@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppState } from './types';
 
+// NFR-3: COPPA encryption at rest. AsyncStorage is NOT encrypted by default —
+// on web it lives in localStorage; on iOS in unencrypted plist files in the
+// app sandbox. Before any production launch this must move to encrypted
+// storage (expo-secure-store or a server-side store with field-level
+// encryption) for any field touching child data.
+
 const KEY = 'storytime-sanctuary:v1';
 
 const EMPTY: AppState = {

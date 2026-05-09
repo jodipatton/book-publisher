@@ -104,25 +104,27 @@ In the conversation screen, type a phrase like `"I want to die"` or `"my stepdad
 
 ## Known gaps from PRD v1.0
 
-The PRD source paste was truncated mid-NFR-3. Pieces still missing or stubbed:
+The PRD source paste is being delivered in chunks. Sections after NFR-4 (technical architecture, data model, dependencies, risks, milestones, open questions) are not yet captured. Items still missing or stubbed:
 
-1. Rest of NFR-3 onward — additional NFRs, technical architecture, data model, dependencies, risks, milestones, open questions.
-2. **COPPA verifiable parental consent (F-1, NFR-3)** — credit card transaction verification not implemented.
-3. **Sign in with Apple (NFR-2)** — auth not implemented.
-4. **Apple Kids Category submission requirements** — Family Sharing, Ask to Buy, no third-party analytics SDKs (NFR-1) — no auth/payment/notif provider integrated.
-5. **Trusted-circle account provisioning (F-15)** — emails captured during setup but no invitation/account flow built.
-6. **Trusted-circle delivery (F-8)** — push/email/web view delivery is stubbed; child's sharing choices are saved locally only.
-7. **Persona persistence across sessions (F-13)** — personality, quirks, conversation history. Currently only the persona ID persists.
-8. **Reading-level adaptation (F-16)** — `readingLevel` field exists; no adaptation logic.
-9. **Photo-informed character description (F-6)** — no upload, no character-consistency layer.
-10. **Real image generation** — pages render as emoji + palette placeholders.
-11. **Collaborative session mode (F-12)** — invite button is a placeholder; AI role-shift not implemented.
-12. **Voice in/out** for the visual-first 5–7 tier (F-4).
-13. **Connectivity-loss handling (F-19)**, **per-session $0.50 cap (F-20)** — interface seam exists; enforcement does not.
-14. **Clinical advisory review queue (F-11)** — `consecutiveAmberSessions` counter tracked on the child profile; the queue itself is not built.
-15. **Soft-launch instrumentation** — clinician-review pipeline, false-positive labeling, retention/completion/sharing-rate dashboards.
-16. **Localized illustration style and persona visual reference** — locked style not defined.
-17. **iPad bedtime UI polish** — reduced blue light awareness, large touch targets are partially honored; warm palette is in place.
+1. Remaining PRD sections after NFR-4.
+2. **COPPA verifiable parental consent (F-1, NFR-3)** — credit card transaction verification not implemented. Required under the FTC's updated rules effective June 2025; non-compliance fines run up to $50K per violation. Engage a COPPA consultant or pursue kidSAFE certification before launch.
+3. **Encryption at rest (NFR-3)** — `AsyncStorage` is not encrypted on web or iOS. Move child-touching fields to `expo-secure-store` or a server-side store with field-level encryption before launch. Flagged inline in `src/storage.ts`.
+4. **US-region data residency (NFR-3)** — backend not built; pin region selection in IaC when it is.
+5. **Sign in with Apple (NFR-2)** — auth not implemented.
+6. **Apple Kids Category compliance (NFR-4)** — no parental gate on outbound links from child surfaces, no Apple-only analytics framework wired, no Family Sharing / Ask to Buy. Apple's updated age-rating questionnaire takes effect fall 2025; design for Kids Category from day one.
+7. **Trusted-circle account provisioning (F-15)** — emails captured during setup but no invitation/account flow built.
+8. **Trusted-circle delivery (F-8)** — push/email/web view delivery is stubbed; child's sharing choices are saved locally only.
+9. **Persona persistence across sessions (F-13)** — personality, quirks, conversation history. Currently only the persona ID persists.
+10. **Reading-level adaptation (F-16)** — `readingLevel` field exists; no adaptation logic.
+11. **Photo-informed character description (F-6)** — no upload, no character-consistency layer.
+12. **Real image generation** — pages render as emoji + palette placeholders.
+13. **Collaborative session mode (F-12)** — invite button is a placeholder; AI role-shift not implemented.
+14. **Voice in/out** for the visual-first 5–7 tier (F-4).
+15. **Connectivity-loss handling (F-19)**, **per-session $0.50 cap (F-20)** — interface seam exists; enforcement does not.
+16. **Clinical advisory review queue (F-11)** — `consecutiveAmberSessions` counter tracked on the child profile; the queue itself is not built.
+17. **Soft-launch instrumentation** — clinician-review pipeline, false-positive labeling, retention/completion/sharing-rate dashboards.
+18. **Locked illustration style and persona visual reference** — not defined.
+19. **iPad bedtime UI polish** — reduced blue light awareness, large touch targets are partially honored; warm palette is in place.
 
 These are tracked so the next pass has a concrete punch list.
 
