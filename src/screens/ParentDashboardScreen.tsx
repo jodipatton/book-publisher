@@ -27,7 +27,7 @@ export function ParentDashboardScreen() {
 
       {safetyAlerts.length > 0 ? (
         <Card style={styles.alertCard}>
-          <Text style={styles.alertTitle}>⚠️ Safety alerts</Text>
+          <Text style={styles.alertTitle}>⚠️ Red-zone safety alerts</Text>
           {safetyAlerts.map((a) => {
             const book = state.storybooks.find((b) => b.id === a.storybookId);
             return (
@@ -36,8 +36,8 @@ export function ParentDashboardScreen() {
                   {a.signal.reason ?? 'severe-danger threshold'}
                 </Text>
                 <Text style={styles.alertSub}>
-                  This storybook was surfaced to you without your child's consent. Your child has
-                  been told this happened.
+                  A red-zone signal fired in tonight's session, so this storybook was surfaced to
+                  you without your child's consent. Your child has been told this happened.
                 </Text>
                 <View style={styles.starters}>
                   {a.conversationStarters.map((s, i) => (

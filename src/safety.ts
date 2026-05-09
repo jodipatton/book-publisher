@@ -1,19 +1,21 @@
-import type { SafetySignal } from './types';
+import type { SafetySignal, SafetyZone } from './types';
 
 // Stub safety classifier.
 //
-// The MVP product will replace this with a real classifier reviewed by a
-// clinical advisor. The shape here is intentionally stable so the swap is
-// drop-in: a string => SafetySignal function.
+// The MVP product replaces this with a clinician-reviewed classifier behind
+// the same one-call signature. PRD §Goal 3 targets:
+//   - red-zone false-positive rate < 5%
+//   - zero red-zone false negatives during soft launch
+//   - 100% of red-zone events surface to parent in < 60s
 //
-// Threshold philosophy (from PRD):
-//   - default: child's words stay private to the conversation/storybook
-//   - urgent:  severe danger signals (suicidal ideation, abuse, imminent harm)
-//              break privacy and surface to the parent with disclaimers and
-//              AI-generated conversation starters
-//   - watch:   patterns to track over time, but NOT a privacy-breaking event
+// Zones:
+//   green  — no concern detected
+//   yellow — patterns to track over time; does NOT break privacy
+//   red    — severe-danger threshold (suicidal ideation, abuse signals,
+//            imminent harm); breaks the child's privacy by design and is
+//            surfaced to the parent with disclaimer + conversation starters.
 
-const URGENT_PATTERNS: { re: RegExp; reason: string }[] = [
+const RED_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(kill myself|end my life|don't want to be alive|want to die)\b/i, reason: 'suicidal ideation' },
   { re: /\b(hurt myself|cut myself|hurting myself)\b/i, reason: 'self-harm' },
   { re: /\b(touched me|hit me|hits me|hurts me)\b/i, reason: 'possible abuse disclosure' },
@@ -21,39 +23,40 @@ const URGENT_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(scared to go home|scared of (mom|dad|stepdad|stepmom))\b/i, reason: 'fear of caregiver' },
 ];
 
-const WATCH_PATTERNS: { re: RegExp; reason: string }[] = [
+const YELLOW_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(everyone hates me|nobody likes me|i'?m alone)\b/i, reason: 'persistent loneliness' },
   { re: /\b(i hate myself|i'?m stupid|i'?m bad)\b/i, reason: 'negative self-talk' },
   { re: /\b(can'?t stop crying|cry every (day|night))\b/i, reason: 'persistent distress' },
 ];
 
 export function classifyTextForSafety(text: string): SafetySignal {
-  const matchedUrgent = URGENT_PATTERNS.filter((p) => p.re.test(text));
-  if (matchedUrgent.length > 0) {
+  const matchedRed = RED_PATTERNS.filter((p) => p.re.test(text));
+  if (matchedRed.length > 0) {
     return {
-      level: 'urgent',
-      reason: matchedUrgent.map((m) => m.reason).join(', '),
-      matchedTerms: matchedUrgent.map((m) => m.re.source),
+      zone: 'red',
+      reason: matchedRed.map((m) => m.reason).join(', '),
+      matchedTerms: matchedRed.map((m) => m.re.source),
     };
   }
-  const matchedWatch = WATCH_PATTERNS.filter((p) => p.re.test(text));
-  if (matchedWatch.length > 0) {
+  const matchedYellow = YELLOW_PATTERNS.filter((p) => p.re.test(text));
+  if (matchedYellow.length > 0) {
     return {
-      level: 'watch',
-      reason: matchedWatch.map((m) => m.reason).join(', '),
-      matchedTerms: matchedWatch.map((m) => m.re.source),
+      zone: 'yellow',
+      reason: matchedYellow.map((m) => m.reason).join(', '),
+      matchedTerms: matchedYellow.map((m) => m.re.source),
     };
   }
-  return { level: 'ok' };
+  return { zone: 'green' };
 }
 
-export function maxLevel(a: SafetySignal['level'], b: SafetySignal['level']): SafetySignal['level'] {
-  const order = { ok: 0, watch: 1, urgent: 2 } as const;
+export function maxZone(a: SafetyZone, b: SafetyZone): SafetyZone {
+  const order = { green: 0, yellow: 1, red: 2 } as const;
   return order[a] >= order[b] ? a : b;
 }
 
-// Conversation-starter generator for parent notifications.
-// Real product: LLM-generated, child-pattern-aware. Stub: small templated set.
+// Conversation-starter generator for parent notifications when a red-zone
+// event fires. Real product: LLM-generated, child-pattern-aware. Stub: small
+// templated set keyed by reason.
 export function generateConversationStarters(reason: string, childName: string): string[] {
   const r = reason.toLowerCase();
   if (r.includes('suicidal') || r.includes('self-harm')) {

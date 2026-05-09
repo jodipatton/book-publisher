@@ -7,8 +7,8 @@ import { getPersona } from '../personas';
 import { useStore } from '../state';
 import { useNav } from '../navigation';
 import { getAIProvider } from '../ai/provider';
-import { classifyTextForSafety, generateConversationStarters, maxLevel } from '../safety';
-import type { Mood, SafetyAlert, SafetyLevel, Storybook, Turn } from '../types';
+import { classifyTextForSafety, generateConversationStarters, maxZone } from '../safety';
+import type { Mood, SafetyAlert, SafetyZone, Storybook, Turn } from '../types';
 
 const id = () => Math.random().toString(36).slice(2, 10);
 
@@ -23,7 +23,7 @@ export function ConversationScreen({ mood }: { mood: string }) {
   const [input, setInput] = useState('');
   const [companionThinking, setCompanionThinking] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [highest, setHighest] = useState<SafetyLevel>('ok');
+  const [highestZone, setHighestZone] = useState<SafetyZone>('green');
   const scrollRef = useRef<ScrollView | null>(null);
 
   // Companion opener.
@@ -52,7 +52,7 @@ export function ConversationScreen({ mood }: { mood: string }) {
     const childTurn: Turn = { id: id(), speaker: 'child', text, createdAt: Date.now() };
 
     const signal = classifyTextForSafety(text);
-    setHighest((h) => maxLevel(h, signal.level));
+    setHighestZone((h) => maxZone(h, signal.zone));
 
     const next = [...turns, childTurn];
     setTurns(next);
@@ -78,7 +78,7 @@ export function ConversationScreen({ mood }: { mood: string }) {
     // Run a final pass over the entire transcript for safety before storing.
     const transcript = turns.filter((t) => t.speaker === 'child').map((t) => t.text).join(' \n ');
     const finalSignal = classifyTextForSafety(transcript);
-    const overallLevel = maxLevel(highest, finalSignal.level);
+    const overallZone = maxZone(highestZone, finalSignal.zone);
 
     const book: Storybook = {
       id: id(),
@@ -89,11 +89,11 @@ export function ConversationScreen({ mood }: { mood: string }) {
       mood: mood as Mood,
       childAuthorName: child.displayName,
       sharedWith: [],
-      safetyOverride: overallLevel === 'urgent' ? finalSignal : undefined,
+      safetyOverride: overallZone === 'red' ? finalSignal : undefined,
     };
     dispatch({ type: 'addStorybook', storybook: book });
 
-    if (overallLevel === 'urgent') {
+    if (overallZone === 'red') {
       const alert: SafetyAlert = {
         id: id(),
         storybookId: book.id,

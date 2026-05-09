@@ -30,10 +30,14 @@ export interface Turn {
   createdAt: number;
 }
 
-export type SafetyLevel = 'ok' | 'watch' | 'urgent';
+// Safety zones, per PRD §Goal 3:
+//   green  — no concern detected
+//   yellow — patterns to track over time; does NOT break privacy
+//   red    — severe-danger threshold; breaks privacy, surfaces to parent
+export type SafetyZone = 'green' | 'yellow' | 'red';
 
 export interface SafetySignal {
-  level: SafetyLevel;
+  zone: SafetyZone;
   reason?: string;
   matchedTerms?: string[];
 }
@@ -71,7 +75,7 @@ export interface Session {
   turns: Turn[];
   collaborators: string[]; // TrustedCircleMember.id[] currently in the session
   storybookId?: string;
-  highestSafetyLevel: SafetyLevel;
+  highestSafetyZone: SafetyZone;
 }
 
 export interface TrustedCircleMember {

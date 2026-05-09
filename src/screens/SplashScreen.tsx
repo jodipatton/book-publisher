@@ -20,8 +20,8 @@ export function SplashScreen() {
     <Screen>
       <View style={styles.hero}>
         <Text style={styles.emoji}>🌙✨📖</Text>
-        <Text style={styles.title}>Storytime Sanctuary</Text>
-        <Text style={styles.subtitle}>A bedtime sanctuary, a storybook bridge.</Text>
+        <Text style={styles.title}>Bedtime Storybook Companion</Text>
+        <Text style={styles.subtitle}>The conversation is the sanctuary. The storybook is the bridge.</Text>
       </View>
       <Card style={styles.disclosure}>
         <Text style={styles.h2}>For the grown-up first</Text>
@@ -30,9 +30,9 @@ export function SplashScreen() {
           companion. The bedtime storybook is the bridge they choose to share with you — or not.
         </Text>
         <Text style={[styles.body, styles.bodySpace]}>
-          One important exception: if the conversation contains signals of severe danger
-          (suicidal ideation, abuse, imminent harm), the system will surface that to you with
-          guidance. Your child will be told this happened.
+          One important exception: if the conversation contains red-zone signals — suicidal
+          ideation, abuse, or imminent harm — the system surfaces it to you within sixty seconds,
+          with conversation starters. Your child will be told this happened.
         </Text>
         <Button
           label={state.parent ? 'Continue' : 'Set up as parent'}
