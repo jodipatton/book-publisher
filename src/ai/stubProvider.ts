@@ -66,9 +66,18 @@ export class StubAIProvider implements AIProvider {
 
     const title = buildTitle(input.child.displayName, input.persona.displayName, tone);
 
+    // PRD F-5: storybook is 5..8 pages. Open + middles + close, where the
+    // middle count is clamped so total stays in band even if the child only
+    // shared a turn or two.
+    const middlesNeededMin = 3; // open + 3 + close = 5
+    const middlesNeededMax = 6; // open + 6 + close = 8
+    const filledMiddles = Math.max(
+      middlesNeededMin,
+      Math.min(middlesNeededMax, childTurns.length),
+    );
     const beats: { kind: 'open' | 'middle' | 'close'; idx: number }[] = [
       { kind: 'open', idx: 0 },
-      ...childTurns.slice(0, 3).map((_, i) => ({ kind: 'middle' as const, idx: i })),
+      ...Array.from({ length: filledMiddles }, (_, i) => ({ kind: 'middle' as const, idx: i })),
       { kind: 'close', idx: 0 },
     ];
 

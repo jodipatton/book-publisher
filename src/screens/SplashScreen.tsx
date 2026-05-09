@@ -26,13 +26,15 @@ export function SplashScreen() {
       <Card style={styles.disclosure}>
         <Text style={styles.h2}>For the grown-up first</Text>
         <Text style={styles.body}>
-          This space is private for your child. The conversation stays between them and their
-          companion. The bedtime storybook is the bridge they choose to share with you — or not.
+          This space is private for your child. Conversation transcripts and mood data are never
+          shown to you. The bedtime storybook is the bridge — your child decides whether to share
+          it, and with whom.
         </Text>
         <Text style={[styles.body, styles.bodySpace]}>
-          One important exception: if the conversation contains red-zone signals — suicidal
-          ideation, abuse, or imminent harm — the system surfaces it to you within sixty seconds,
-          with conversation starters. Your child will be told this happened.
+          One exception: if the system detects a red-zone signal — suicidal ideation, abuse, or
+          imminent harm — it surfaces the storybook to you within sixty seconds with
+          conversation starters and a 988 Suicide and Crisis Lifeline link. Your child will be
+          told, in their persona's voice, that someone who loves them is going to help.
         </Text>
         <Button
           label={state.parent ? 'Continue' : 'Set up as parent'}

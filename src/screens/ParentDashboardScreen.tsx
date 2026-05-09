@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../ui/Screen';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -37,7 +37,9 @@ export function ParentDashboardScreen() {
                 </Text>
                 <Text style={styles.alertSub}>
                   A red-zone signal fired in tonight's session, so this storybook was surfaced to
-                  you without your child's consent. Your child has been told this happened.
+                  you without your child's consent. Your child has been told, in their persona's
+                  voice and in age-appropriate language, that someone who loves them is going to
+                  help.
                 </Text>
                 <View style={styles.starters}>
                   {a.conversationStarters.map((s, i) => (
@@ -45,6 +47,15 @@ export function ParentDashboardScreen() {
                       • {s}
                     </Text>
                   ))}
+                </View>
+                <View style={styles.crisis}>
+                  <Text style={styles.crisisLabel}>Crisis resources</Text>
+                  <Pressable onPress={() => Linking.openURL('tel:988')}>
+                    <Text style={styles.crisisLink}>Call 988 — Suicide and Crisis Lifeline</Text>
+                  </Pressable>
+                  <Pressable onPress={() => Linking.openURL('https://988lifeline.org/chat/')}>
+                    <Text style={styles.crisisLink}>Chat with 988 online</Text>
+                  </Pressable>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                   {book ? (
@@ -106,6 +117,17 @@ const styles = StyleSheet.create({
   alertSub: { fontSize: 13, color: theme.colors.textSoft, marginTop: 4 },
   starters: { marginTop: 8, gap: 6 },
   starter: { fontSize: 14, color: theme.colors.text, lineHeight: 20 },
+  crisis: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFEFE0',
+    borderWidth: 1,
+    borderColor: '#F2C39A',
+    gap: 4,
+  },
+  crisisLabel: { fontSize: 12, fontWeight: '700', color: '#7A4F00', textTransform: 'uppercase' },
+  crisisLink: { fontSize: 15, fontWeight: '600', color: theme.colors.danger },
   h2: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowEmoji: { fontSize: 32 },

@@ -52,6 +52,7 @@ export function ConversationScreen({ mood }: { mood: string }) {
     const childTurn: Turn = { id: id(), speaker: 'child', text, createdAt: Date.now() };
 
     const signal = classifyTextForSafety(text);
+    const becameRed = signal.zone === 'red';
     setHighestZone((h) => maxZone(h, signal.zone));
 
     const next = [...turns, childTurn];
@@ -59,14 +60,23 @@ export function ConversationScreen({ mood }: { mood: string }) {
     setInput('');
     setCompanionThinking(true);
 
-    const reply = await ai.companionReply({
-      persona,
-      child,
-      mood: mood as Mood,
-      history: next,
-      latestChildText: text,
-    });
-    setTurns((cur) => [...cur, { id: id(), speaker: 'companion', text: reply, createdAt: Date.now() }]);
+    // F-10: when a red-zone signal fires, the persona tells the child in
+    // age-appropriate language that someone who loves them is going to help.
+    // Otherwise we use the AIProvider for a normal reply.
+    const personaReply = becameRed
+      ? `${persona.emoji} ${child.displayName}, what you said matters a lot. I am going to make sure someone who loves you knows, so they can help. You are not in trouble. I am right here.`
+      : await ai.companionReply({
+          persona,
+          child,
+          mood: mood as Mood,
+          history: next,
+          latestChildText: text,
+        });
+
+    setTurns((cur) => [
+      ...cur,
+      { id: id(), speaker: 'companion', text: personaReply, createdAt: Date.now() },
+    ]);
     setCompanionThinking(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
   };
@@ -102,6 +112,20 @@ export function ConversationScreen({ mood }: { mood: string }) {
         conversationStarters: generateConversationStarters(finalSignal.reason ?? '', child.displayName),
       };
       dispatch({ type: 'addSafetyAlert', alert });
+    }
+
+    // F-11: track consecutive amber sessions on the child profile.
+    // Amber bumps the counter; green resets it; red is handled separately
+    // via the alert path. >=5 elevates to clinical advisory review queue
+    // (queue itself is not yet implemented — see README gaps).
+    const prev = child.consecutiveAmberSessions ?? 0;
+    const nextAmberCount =
+      overallZone === 'amber' ? prev + 1 : overallZone === 'green' ? 0 : prev;
+    if (nextAmberCount !== prev) {
+      dispatch({
+        type: 'setChild',
+        child: { ...child, consecutiveAmberSessions: nextAmberCount },
+      });
     }
 
     setGenerating(false);

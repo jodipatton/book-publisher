@@ -25,10 +25,12 @@ export const PERSONAS: Persona[] = [
     paletteHex: '#7FB77E',
     voiceTraits: ['gentle', 'patient', 'observant', 'rooted'],
   },
+  // F-2: the fourth persona is "TBD via clinical advisory consultation".
+  // Owl is a placeholder so the curated set has 4 tiles for testing.
   {
     id: 'owl',
     displayName: 'Pip the Owl',
-    shortDescription: 'A small owl who is full of questions.',
+    shortDescription: 'A small owl who is full of questions. (placeholder — TBD)',
     emoji: '🦉',
     paletteHex: '#9CB4E0',
     voiceTraits: ['curious', 'thoughtful', 'kind', 'a little silly'],
@@ -41,11 +43,11 @@ export function getPersona(id: string): Persona {
   return found;
 }
 
+// PRD F-3: emoji-based mood check-in with heart, sunshine, cloud, storm.
+// Each label is read by assistive technology via accessibilityLabel on tiles.
 export const MOODS: MoodOption[] = [
+  { id: 'heart', emoji: '💗', label: 'Soft and full of love', tone: 'mixed' },
   { id: 'sunshine', emoji: '☀️', label: 'Bright day', tone: 'light' },
-  { id: 'rainbow', emoji: '🌈', label: 'Lots of feelings', tone: 'mixed' },
-  { id: 'spark', emoji: '✨', label: 'Something cool happened', tone: 'light' },
-  { id: 'heart', emoji: '💗', label: 'Soft and quiet', tone: 'mixed' },
   { id: 'cloud', emoji: '☁️', label: 'Hard day', tone: 'heavy' },
   { id: 'storm', emoji: '⛈️', label: 'Big stormy feelings', tone: 'heavy' },
 ];

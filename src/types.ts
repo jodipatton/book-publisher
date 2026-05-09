@@ -12,7 +12,8 @@ export interface Persona {
   voiceTraits: string[];
 }
 
-export type Mood = 'sunshine' | 'rainbow' | 'cloud' | 'storm' | 'heart' | 'spark';
+// Per F-3: heart, sunshine, cloud, storm.
+export type Mood = 'heart' | 'sunshine' | 'cloud' | 'storm';
 
 export interface MoodOption {
   id: Mood;
@@ -30,11 +31,14 @@ export interface Turn {
   createdAt: number;
 }
 
-// Safety zones, per PRD §Goal 3:
-//   green  — no concern detected
-//   yellow — patterns to track over time; does NOT break privacy
-//   red    — severe-danger threshold; breaks privacy, surfaces to parent
-export type SafetyZone = 'green' | 'yellow' | 'red';
+// Safety zones, per PRD §F-9..F-11:
+//   green — no concern detected
+//   amber — patterns to track over time; does NOT break privacy. Persisting
+//           5+ sessions of amber elevates the child to a clinical-advisory
+//           review queue (F-11).
+//   red   — severe-danger threshold; breaks privacy, surfaces to parent
+//           within 60s with conversation starters and a 988 link (F-10).
+export type SafetyZone = 'green' | 'amber' | 'red';
 
 export interface SafetySignal {
   zone: SafetyZone;
@@ -82,6 +86,7 @@ export interface TrustedCircleMember {
   id: string;
   displayName: string;
   relationship: string; // "Mom", "Dad", "Aunt Jody", ...
+  email: string; // F-14, F-15: lightweight account is provisioned via this email
   receivesSafetyAlerts: boolean;
 }
 
@@ -92,6 +97,12 @@ export interface ChildProfile {
   personaId: PersonaId;
   // Demonstrated reading level — adapts upward over time. 0..1 within band.
   readingLevel: number;
+  // F-18: optional parent-set per-session time limit, in minutes.
+  sessionTimeLimitMinutes?: number;
+  // F-11 support: count of consecutive sessions whose highest zone was amber.
+  // Resets when a green-only session completes. >=5 elevates to clinical
+  // advisory review queue (not yet implemented end-to-end).
+  consecutiveAmberSessions?: number;
 }
 
 export interface ParentProfile {

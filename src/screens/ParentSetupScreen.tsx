@@ -17,26 +17,35 @@ export function ParentSetupScreen() {
   const [parentName, setParentName] = useState(state.parent?.displayName ?? '');
   const [childName, setChildName] = useState(state.child?.displayName ?? '');
   const [age, setAge] = useState(String(state.child?.ageYears ?? 7));
+  const [sessionLimit, setSessionLimit] = useState(
+    String(state.child?.sessionTimeLimitMinutes ?? 15),
+  );
   const [members, setMembers] = useState<TrustedCircleMember[]>(state.trustedCircle);
   const [newName, setNewName] = useState('');
   const [newRel, setNewRel] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [alerts, setAlerts] = useState(true);
 
   const ageNum = Math.max(5, Math.min(10, parseInt(age, 10) || 7));
+  const sessionLimitNum = Math.max(5, Math.min(60, parseInt(sessionLimit, 10) || 15));
+
+  const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
   const addMember = () => {
-    if (!newName.trim() || !newRel.trim()) return;
+    if (!newName.trim() || !newRel.trim() || !isEmail(newEmail.trim())) return;
     setMembers((m) => [
       ...m,
       {
         id: id(),
         displayName: newName.trim(),
         relationship: newRel.trim(),
+        email: newEmail.trim(),
         receivesSafetyAlerts: alerts,
       },
     ]);
     setNewName('');
     setNewRel('');
+    setNewEmail('');
   };
 
   const removeMember = (mid: string) => setMembers((m) => m.filter((x) => x.id !== mid));
@@ -53,6 +62,8 @@ export function ParentSetupScreen() {
         ageYears: ageNum,
         personaId: state.child?.personaId ?? 'dog',
         readingLevel: state.child?.readingLevel ?? Math.min(1, (ageNum - 5) / 5),
+        sessionTimeLimitMinutes: sessionLimitNum,
+        consecutiveAmberSessions: state.child?.consecutiveAmberSessions ?? 0,
       },
     });
     dispatch({ type: 'setTrustedCircle', members });
@@ -81,6 +92,16 @@ export function ParentSetupScreen() {
           keyboardType="number-pad"
           maxLength={2}
         />
+
+        <Text style={styles.label}>Session time limit (minutes, 5–60)</Text>
+        <TextInput
+          value={sessionLimit}
+          onChangeText={setSessionLimit}
+          style={styles.input}
+          keyboardType="number-pad"
+          maxLength={2}
+          placeholder="15"
+        />
       </Card>
 
       <Card style={styles.section}>
@@ -94,7 +115,7 @@ export function ParentSetupScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.memberName}>{m.displayName}</Text>
               <Text style={styles.memberRel}>
-                {m.relationship}
+                {m.relationship} • {m.email}
                 {m.receivesSafetyAlerts ? ' • receives safety alerts' : ''}
               </Text>
             </View>
@@ -104,10 +125,22 @@ export function ParentSetupScreen() {
           </View>
         ))}
 
+        <Text style={styles.help}>
+          Each circle member is invited by email and gets a view-only account for shared
+          storybooks (PRD F-15).
+        </Text>
         <View style={styles.addRow}>
           <TextInput value={newName} onChangeText={setNewName} style={[styles.input, styles.flex]} placeholder="Name" />
           <TextInput value={newRel} onChangeText={setNewRel} style={[styles.input, styles.flex]} placeholder="Relationship" />
         </View>
+        <TextInput
+          value={newEmail}
+          onChangeText={setNewEmail}
+          style={styles.input}
+          placeholder="Email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
         <Pressable onPress={() => setAlerts((a) => !a)} style={styles.toggleRow}>
           <View style={[styles.checkbox, alerts && styles.checkboxOn]} />
           <Text style={styles.help}>Also receives safety alerts (only for severe-danger threshold)</Text>

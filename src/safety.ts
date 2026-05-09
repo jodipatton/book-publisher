@@ -23,7 +23,7 @@ const RED_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(scared to go home|scared of (mom|dad|stepdad|stepmom))\b/i, reason: 'fear of caregiver' },
 ];
 
-const YELLOW_PATTERNS: { re: RegExp; reason: string }[] = [
+const AMBER_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /\b(everyone hates me|nobody likes me|i'?m alone)\b/i, reason: 'persistent loneliness' },
   { re: /\b(i hate myself|i'?m stupid|i'?m bad)\b/i, reason: 'negative self-talk' },
   { re: /\b(can'?t stop crying|cry every (day|night))\b/i, reason: 'persistent distress' },
@@ -38,19 +38,19 @@ export function classifyTextForSafety(text: string): SafetySignal {
       matchedTerms: matchedRed.map((m) => m.re.source),
     };
   }
-  const matchedYellow = YELLOW_PATTERNS.filter((p) => p.re.test(text));
-  if (matchedYellow.length > 0) {
+  const matchedAmber = AMBER_PATTERNS.filter((p) => p.re.test(text));
+  if (matchedAmber.length > 0) {
     return {
-      zone: 'yellow',
-      reason: matchedYellow.map((m) => m.reason).join(', '),
-      matchedTerms: matchedYellow.map((m) => m.re.source),
+      zone: 'amber',
+      reason: matchedAmber.map((m) => m.reason).join(', '),
+      matchedTerms: matchedAmber.map((m) => m.re.source),
     };
   }
   return { zone: 'green' };
 }
 
 export function maxZone(a: SafetyZone, b: SafetyZone): SafetyZone {
-  const order = { green: 0, yellow: 1, red: 2 } as const;
+  const order = { green: 0, amber: 1, red: 2 } as const;
   return order[a] >= order[b] ? a : b;
 }
 
