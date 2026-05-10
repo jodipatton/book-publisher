@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../ui/Screen';
 import { Button } from '../ui/Button';
@@ -6,10 +6,36 @@ import { Card } from '../ui/Card';
 import { theme } from '../ui/theme';
 import { useStore } from '../state';
 import { useNav } from '../navigation';
+import { api, isApiEnabled } from '../api/client';
+import { safetyAlertFromEventDTO, storybookFromDTO } from '../api/mappers';
 
 export function ParentDashboardScreen() {
   const { state, dispatch } = useStore();
   const { navigate } = useNav();
+
+  // Refresh from server on mount when API is enabled. Safety events and
+  // storybooks both: the dashboard is the parent's only window into the
+  // sanctuary, so it needs to be current.
+  useEffect(() => {
+    if (!isApiEnabled()) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const [events, books] = await Promise.all([
+          api.listSafetyEvents(),
+          api.listStorybooks(),
+        ]);
+        if (!mounted) return;
+        dispatch({ type: 'setSafetyAlerts', alerts: events.map(safetyAlertFromEventDTO) });
+        dispatch({ type: 'setStorybooks', storybooks: books.map(storybookFromDTO) });
+      } catch {
+        // Non-fatal; the locally-cached view stays.
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [dispatch]);
 
   const sharedToParent = state.storybooks.filter((b) =>
     b.sharedWith.some((id) => state.trustedCircle.find((m) => m.id === id)?.relationship.toLowerCase().match(/mom|dad|parent/))
@@ -64,7 +90,26 @@ export function ParentDashboardScreen() {
                     </Pressable>
                   ) : null}
                   {!a.acknowledgedAt ? (
-                    <Pressable onPress={() => dispatch({ type: 'acknowledgeSafetyAlert', id: a.id })}>
+                    <Pressable
+                      onPress={async () => {
+                        if (isApiEnabled()) {
+                          try {
+                            const updated = await api.acknowledgeSafetyEvent(a.id);
+                            dispatch({
+                              type: 'setSafetyAlerts',
+                              alerts: state.pendingSafetyAlerts.map((x) =>
+                                x.id === a.id ? safetyAlertFromEventDTO(updated) : x,
+                              ),
+                            });
+                            return;
+                          } catch {
+                            // Fall through to local-only acknowledge so the
+                            // parent doesn't get stuck if the server is down.
+                          }
+                        }
+                        dispatch({ type: 'acknowledgeSafetyAlert', id: a.id });
+                      }}
+                    >
                       <Text style={styles.link}>Acknowledge</Text>
                     </Pressable>
                   ) : (

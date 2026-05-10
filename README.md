@@ -56,7 +56,9 @@ Then point the Expo client at it:
 EXPO_PUBLIC_API_URL=http://localhost:8000 EXPO_OFFLINE=1 npm run web
 ```
 
-The splash screen shows a green "Connected to …" banner when the API is reachable, grey "Local-only" when `EXPO_PUBLIC_API_URL` is unset, or red if the URL is set but unreachable. Parent setup mirrors parent + child + trusted-circle to the API on save; the rest of the screens still talk only to the local `AsyncStorage` store (see `backend/README.md` "What's wired vs. follow-up").
+The splash screen shows a green "Connected to …" banner when the API is reachable, grey "Local-only" when `EXPO_PUBLIC_API_URL` is unset, or red if the URL is set but unreachable.
+
+When connected, the full child + parent loop round-trips through the API: parent setup, persona pick, conversation (every turn classified server-side, F-10 red-zone path included), 5–8 page storybook generation, sharing to the trusted circle, library, and the parent dashboard's safety events with `Acknowledge`. AsyncStorage is just a local cache hydrated from the server on boot. See `backend/README.md` "What's wired vs. follow-up" for the remaining items.
 
 ## What's wired up
 

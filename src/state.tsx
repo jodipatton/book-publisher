@@ -14,8 +14,10 @@ type Action =
   | { type: 'setParent'; parent: ParentProfile | null }
   | { type: 'setChild'; child: ChildProfile | null }
   | { type: 'setTrustedCircle'; members: TrustedCircleMember[] }
+  | { type: 'setStorybooks'; storybooks: Storybook[] }
   | { type: 'addStorybook'; storybook: Storybook }
   | { type: 'updateStorybook'; storybook: Storybook }
+  | { type: 'setSafetyAlerts'; alerts: SafetyAlert[] }
   | { type: 'addSafetyAlert'; alert: SafetyAlert }
   | { type: 'acknowledgeSafetyAlert'; id: string }
   | { type: 'reset' };
@@ -38,17 +40,31 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, child: action.child };
     case 'setTrustedCircle':
       return { ...state, trustedCircle: action.members };
+    case 'setStorybooks':
+      return { ...state, storybooks: action.storybooks };
     case 'addStorybook':
-      return { ...state, storybooks: [action.storybook, ...state.storybooks] };
+      // De-dupe on id so a hydrate-then-add or two-add races don't duplicate.
+      return {
+        ...state,
+        storybooks: [
+          action.storybook,
+          ...state.storybooks.filter((b) => b.id !== action.storybook.id),
+        ],
+      };
     case 'updateStorybook':
       return {
         ...state,
         storybooks: state.storybooks.map((b) => (b.id === action.storybook.id ? action.storybook : b)),
       };
+    case 'setSafetyAlerts':
+      return { ...state, pendingSafetyAlerts: action.alerts };
     case 'addSafetyAlert':
       return {
         ...state,
-        pendingSafetyAlerts: [action.alert, ...state.pendingSafetyAlerts],
+        pendingSafetyAlerts: [
+          action.alert,
+          ...state.pendingSafetyAlerts.filter((a) => a.id !== action.alert.id),
+        ],
       };
     case 'acknowledgeSafetyAlert':
       return {

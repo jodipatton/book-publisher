@@ -6,6 +6,8 @@ import { Card } from '../ui/Card';
 import { theme } from '../ui/theme';
 import { useStore } from '../state';
 import { useNav } from '../navigation';
+import { api, isApiEnabled } from '../api/client';
+import { storybookFromDTO } from '../api/mappers';
 
 export function ShareScreen({ storybookId }: { storybookId: string }) {
   const { state, dispatch } = useStore();
@@ -32,10 +34,30 @@ export function ShareScreen({ storybookId }: { storybookId: string }) {
     });
   };
 
-  const onSave = () => {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onSave = async () => {
+    setError(null);
+    const sharedWith = Array.from(picked);
+
+    if (isApiEnabled()) {
+      setSaving(true);
+      try {
+        const dto = await api.shareStorybook(book.id, sharedWith);
+        dispatch({ type: 'updateStorybook', storybook: storybookFromDTO(dto) });
+        navigate({ name: 'library' });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     dispatch({
       type: 'updateStorybook',
-      storybook: { ...book, sharedWith: Array.from(picked) },
+      storybook: { ...book, sharedWith },
     });
     navigate({ name: 'library' });
   };
@@ -73,7 +95,12 @@ export function ShareScreen({ storybookId }: { storybookId: string }) {
       )}
 
       <View style={{ height: 16 }} />
-      <Button label="Save sharing choices" onPress={onSave} />
+      {error ? <Text style={styles.errText}>Couldn't save: {error}</Text> : null}
+      <Button
+        label={saving ? 'Saving…' : 'Save sharing choices'}
+        onPress={onSave}
+        disabled={saving}
+      />
       <View style={{ height: 8 }} />
       <Button label="Keep this one private" variant="ghost" onPress={() => { setPicked(new Set()); }} />
     </Screen>
@@ -99,4 +126,5 @@ const styles = StyleSheet.create({
   checkboxOn: { backgroundColor: theme.colors.primary },
   name: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
   rel: { fontSize: 13, color: theme.colors.textSoft },
+  errText: { color: theme.colors.danger, fontSize: 13, marginBottom: 8 },
 });

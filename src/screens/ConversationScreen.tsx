@@ -9,8 +9,10 @@ import { useNav } from '../navigation';
 import { getAIProvider } from '../ai/provider';
 import { classifyTextForSafety, generateConversationStarters, maxZone } from '../safety';
 import type { Mood, SafetyAlert, SafetyZone, Storybook, Turn } from '../types';
+import { api, isApiEnabled } from '../api/client';
+import { safetyAlertFromEventDTO, storybookFromDTO } from '../api/mappers';
 
-const id = () => Math.random().toString(36).slice(2, 10);
+const localId = () => Math.random().toString(36).slice(2, 10);
 
 export function ConversationScreen({ mood }: { mood: string }) {
   const { state, dispatch } = useStore();
@@ -18,39 +20,129 @@ export function ConversationScreen({ mood }: { mood: string }) {
   const persona = getPersona(state.child?.personaId ?? 'dog');
   const child = state.child!;
   const ai = useMemo(() => getAIProvider(), []);
+  const useApi = isApiEnabled();
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState('');
   const [companionThinking, setCompanionThinking] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [highestZone, setHighestZone] = useState<SafetyZone>('green');
+  const [serverSessionId, setServerSessionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
-  // Companion opener.
+  // Session bootstrap. In API mode we POST /v1/sessions and pull back the
+  // companion opener turn the server creates. In local-only mode we ask
+  // the local stub for an opener instead.
   useEffect(() => {
     let mounted = true;
     setCompanionThinking(true);
-    ai.companionReply({
-      persona,
-      child,
-      mood: mood as Mood,
-      history: [],
-      latestChildText: '',
-    }).then((text) => {
-      if (!mounted) return;
-      setTurns([{ id: id(), speaker: 'companion', text, createdAt: Date.now() }]);
-      setCompanionThinking(false);
-    });
+    setError(null);
+
+    (async () => {
+      try {
+        if (useApi) {
+          const session = await api.createSession({
+            child_id: child.id,
+            persona_id: persona.id,
+            mood: mood as Mood,
+          });
+          if (!mounted) return;
+          setServerSessionId(session.id);
+          setTurns(
+            session.turns.map((t) => ({
+              id: t.id,
+              speaker: t.speaker,
+              text: t.text,
+              createdAt: Date.parse(t.created_at),
+            })),
+          );
+        } else {
+          const text = await ai.companionReply({
+            persona,
+            child,
+            mood: mood as Mood,
+            history: [],
+            latestChildText: '',
+          });
+          if (!mounted) return;
+          setTurns([{ id: localId(), speaker: 'companion', text, createdAt: Date.now() }]);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (mounted) setCompanionThinking(false);
+      }
+    })();
+
     return () => {
       mounted = false;
     };
-  }, [ai, child, persona, mood]);
+  }, [ai, child, persona, mood, useApi]);
 
   const onSend = async () => {
     const text = input.trim();
     if (!text || companionThinking) return;
-    const childTurn: Turn = { id: id(), speaker: 'child', text, createdAt: Date.now() };
+    setError(null);
 
+    if (useApi) {
+      if (!serverSessionId) {
+        setError('Session is not ready yet.');
+        return;
+      }
+      // Optimistically render the child turn while the server thinks.
+      const optimistic: Turn = {
+        id: 'pending-' + localId(),
+        speaker: 'child',
+        text,
+        createdAt: Date.now(),
+      };
+      setTurns((cur) => [...cur, optimistic]);
+      setInput('');
+      setCompanionThinking(true);
+      try {
+        const reply = await api.appendTurn(serverSessionId, text);
+        // Replace the optimistic turn with the server's authoritative pair.
+        setTurns((cur) => [
+          ...cur.filter((t) => t.id !== optimistic.id),
+          {
+            id: reply.child_turn.id,
+            speaker: 'child',
+            text: reply.child_turn.text,
+            createdAt: Date.parse(reply.child_turn.created_at),
+          },
+          {
+            id: reply.companion_turn.id,
+            speaker: 'companion',
+            text: reply.companion_turn.text,
+            createdAt: Date.parse(reply.companion_turn.created_at),
+          },
+        ]);
+        setHighestZone((h) => maxZone(h, reply.safety_zone));
+        // If the server fired a red-zone event, refresh safety alerts so
+        // the parent dashboard surfaces it immediately.
+        if (reply.safety_zone === 'red') {
+          try {
+            const events = await api.listSafetyEvents();
+            dispatch({ type: 'setSafetyAlerts', alerts: events.map(safetyAlertFromEventDTO) });
+          } catch {
+            // Non-fatal; the dashboard refetches on its own mount too.
+          }
+        }
+      } catch (e) {
+        // Roll back the optimistic turn on failure.
+        setTurns((cur) => cur.filter((t) => t.id !== optimistic.id));
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setCompanionThinking(false);
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+      }
+      return;
+    }
+
+    // ---- Local-only path (unchanged) ----
+    const childTurn: Turn = { id: localId(), speaker: 'child', text, createdAt: Date.now() };
     const signal = classifyTextForSafety(text);
     const becameRed = signal.zone === 'red';
     setHighestZone((h) => maxZone(h, signal.zone));
@@ -60,9 +152,6 @@ export function ConversationScreen({ mood }: { mood: string }) {
     setInput('');
     setCompanionThinking(true);
 
-    // F-10: when a red-zone signal fires, the persona tells the child in
-    // age-appropriate language that someone who loves them is going to help.
-    // Otherwise we use the AIProvider for a normal reply.
     const personaReply = becameRed
       ? `${persona.emoji} ${child.displayName}, what you said matters a lot. I am going to make sure someone who loves you knows, so they can help. You are not in trouble. I am right here.`
       : await ai.companionReply({
@@ -75,7 +164,7 @@ export function ConversationScreen({ mood }: { mood: string }) {
 
     setTurns((cur) => [
       ...cur,
-      { id: id(), speaker: 'companion', text: personaReply, createdAt: Date.now() },
+      { id: localId(), speaker: 'companion', text: personaReply, createdAt: Date.now() },
     ]);
     setCompanionThinking(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
@@ -83,15 +172,65 @@ export function ConversationScreen({ mood }: { mood: string }) {
 
   const onMakeStory = async () => {
     setGenerating(true);
-    const draft = await ai.generateStorybook({ persona, child, mood: mood as Mood, turns });
+    setError(null);
 
-    // Run a final pass over the entire transcript for safety before storing.
+    if (useApi) {
+      if (!serverSessionId) {
+        setError('Session is not ready yet.');
+        setGenerating(false);
+        return;
+      }
+      try {
+        const dto = await api.generateStorybook(serverSessionId);
+        const book = storybookFromDTO(dto);
+        dispatch({ type: 'addStorybook', storybook: book });
+        // Re-pull safety events; if the transcript-wide pass on the server
+        // raised a red-zone, it lives there.
+        try {
+          const events = await api.listSafetyEvents();
+          dispatch({ type: 'setSafetyAlerts', alerts: events.map(safetyAlertFromEventDTO) });
+        } catch {
+          // Non-fatal.
+        }
+        // Pull back the child profile so consecutive_amber_sessions
+        // reflects what the server just updated.
+        try {
+          const refreshed = await api.listChildren();
+          if (refreshed.length > 0) {
+            const c = refreshed.find((x) => x.id === child.id) ?? refreshed[0];
+            dispatch({
+              type: 'setChild',
+              child: {
+                id: c.id,
+                displayName: c.display_name,
+                ageYears: c.age_years,
+                personaId: child.personaId,
+                readingLevel: c.reading_level,
+                sessionTimeLimitMinutes: c.session_time_limit_minutes ?? undefined,
+                consecutiveAmberSessions: c.consecutive_amber_sessions,
+              },
+            });
+          }
+        } catch {
+          // Non-fatal.
+        }
+        navigate({ name: 'storybook', storybookId: book.id, justCreated: true });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // ---- Local-only path (unchanged) ----
+    const draft = await ai.generateStorybook({ persona, child, mood: mood as Mood, turns });
     const transcript = turns.filter((t) => t.speaker === 'child').map((t) => t.text).join(' \n ');
     const finalSignal = classifyTextForSafety(transcript);
     const overallZone = maxZone(highestZone, finalSignal.zone);
 
     const book: Storybook = {
-      id: id(),
+      id: localId(),
       title: draft.title,
       pages: draft.pages,
       createdAt: Date.now(),
@@ -105,19 +244,18 @@ export function ConversationScreen({ mood }: { mood: string }) {
 
     if (overallZone === 'red') {
       const alert: SafetyAlert = {
-        id: id(),
+        id: localId(),
         storybookId: book.id,
         signal: finalSignal,
         createdAt: Date.now(),
-        conversationStarters: generateConversationStarters(finalSignal.reason ?? '', child.displayName),
+        conversationStarters: generateConversationStarters(
+          finalSignal.reason ?? '',
+          child.displayName,
+        ),
       };
       dispatch({ type: 'addSafetyAlert', alert });
     }
 
-    // F-11: track consecutive amber sessions on the child profile.
-    // Amber bumps the counter; green resets it; red is handled separately
-    // via the alert path. >=5 elevates to clinical advisory review queue
-    // (queue itself is not yet implemented — see README gaps).
     const prev = child.consecutiveAmberSessions ?? 0;
     const nextAmberCount =
       overallZone === 'amber' ? prev + 1 : overallZone === 'green' ? 0 : prev;
@@ -167,6 +305,8 @@ export function ConversationScreen({ mood }: { mood: string }) {
         ) : null}
       </ScrollView>
 
+      {error ? <Text style={styles.errText}>Couldn't reach companion: {error}</Text> : null}
+
       <View style={styles.composer}>
         <TextInput
           value={input}
@@ -214,4 +354,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  errText: { color: theme.colors.danger, fontSize: 13, marginTop: 8 },
 });

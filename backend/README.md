@@ -141,15 +141,25 @@ Marked as the next major milestone in the root README.
 - 6/6 smoke tests
 - Compose YAML validated, Dockerfile validated locally via uv install
 - Alembic seeds the curated personas
-- Expo client: API client (`src/api/client.ts`), connectivity banner on splash, `ParentSetupScreen` mirrors parent + child + trusted-circle to the API
+- **Full Expo client wiring**:
+  - API client (`src/api/client.ts`) covers every endpoint above
+  - Boot-time hydrator (`src/api/hydrate.ts`) pulls `/me`, children, trusted-circle, storybooks, and safety events on app start when `EXPO_PUBLIC_API_URL` is set; falls back to AsyncStorage when unset
+  - `ParentSetupScreen` mirrors parent + child + trusted-circle creation
+  - `ConversationScreen` creates a server `Session`, every child turn round-trips through `POST /v1/sessions/{id}/turns` (server-side safety classifier is the source of truth; client also re-fetches safety events on red so the parent dashboard surfaces immediately)
+  - Storybook generation calls `POST /v1/sessions/{id}/storybook` (5-8 pages enforced server-side); afterward the child profile is re-pulled so `consecutiveAmberSessions` reflects the F-11 counter the server just updated
+  - `ShareScreen` calls `PATCH /v1/storybooks/{id}/share`; recipients outside the parent's trusted circle are rejected by the server
+  - `ParentDashboardScreen` refreshes safety events + storybooks on mount; acknowledge calls `POST /v1/safety-events/{id}/acknowledge`
+  - `StorybookScreen` and `LibraryScreen` read directly from the hydrated store — no extra wiring needed
+  - Splash banner shows green / grey / red for connectivity; an unreachable API gracefully falls back to local-only mode
 
-**Follow-up (client-side migration is partial):**
+**Follow-up:**
 
-- `ConversationScreen`, `StorybookScreen`, `LibraryScreen`, `ParentDashboardScreen` still read/write only the local `AsyncStorage` store. Wire them through `src/api/client.ts` so the conversation, the 5-8 page storybook generation, the share flow, and the red-zone alert all round-trip through the API.
 - F-20 per-session $0.50 cost cap enforcement in `app/ai/provider.py`
 - Real image generation + S3 upload + signed URLs replacing the emoji+palette placeholders on `StorybookPage`
 - Trusted-circle invitation emails and lightweight account flow (F-15)
 - Real Sign in with Apple (NFR-2) + COPPA verifiable consent (F-1, NFR-3) replacing the dev-stub auth
 - Push/email/web-view delivery to trusted-circle recipients (F-8)
+- F-11 clinical-advisory review queue (the per-child counter is wired; the queue endpoint + reviewer auth are not)
+- Multi-child support in the client (server already supports many children per parent)
 - Apple Kids Category compliance for the iOS frontend (NFR-4)
 - Native Swift/SwiftUI iPadOS frontend per PRD §Technical Architecture

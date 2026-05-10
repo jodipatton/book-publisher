@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StoreProvider, useStore } from './src/state';
 import { NavProvider, useNav } from './src/navigation';
 import { theme } from './src/ui/theme';
+import { useApiHydrate } from './src/api/hydrate';
 
 import { SplashScreen } from './src/screens/SplashScreen';
 import { ParentSetupScreen } from './src/screens/ParentSetupScreen';
@@ -29,7 +30,10 @@ export default function App() {
 
 function Root() {
   const { ready } = useStore();
-  if (!ready) {
+  // Boot-time API hydration. No-op when EXPO_PUBLIC_API_URL is unset.
+  const apiHydrate = useApiHydrate();
+
+  if (!ready || apiHydrate.hydrating) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator />
