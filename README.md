@@ -12,13 +12,14 @@ This repo is the MVP scaffold. **Production target is iPad-only per PRD scope** 
 
 This is intentional and called out so it's not a surprise:
 
-| Layer       | Scaffold (this repo)                                  | PRD v1.0 production target                                       |
-| ----------- | ----------------------------------------------------- | ---------------------------------------------------------------- |
-| Frontend    | Expo (React Native + RN Web), TypeScript              | Native Swift / SwiftUI on iPadOS                                  |
-| Backend     | None (everything client-side, AsyncStorage)           | Node.js or Python FastAPI on managed cloud                        |
-| Database    | None                                                  | PostgreSQL primary, Redis cache, S3-compatible object storage     |
-| Hosting     | Local                                                 | AWS or GCP, US regions for COPPA residency                        |
-| AI / images | Stub `StubAIProvider` (no network, deterministic)     | Real LLM + image model behind same `AIProvider` shape, with batching, $0.50/session cap |
+| Layer       | Scaffold (this repo)                                                                  | PRD v1.0 production target                                                              |
+| ----------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Frontend    | Expo (React Native + RN Web), TypeScript                                              | Native Swift / SwiftUI on iPadOS                                                        |
+| Backend     | **Python + FastAPI in `backend/`** (Phase One foundation)                             | Same — Node.js or Python + FastAPI                                                      |
+| Database    | **PostgreSQL 16, Redis 7, MinIO** via `docker compose up`                             | PostgreSQL, Redis, S3-compatible — same shapes, real cloud                              |
+| Hosting     | Local Docker only                                                                      | AWS or GCP, US regions for COPPA residency. Terraform / CDK is the next step           |
+| Auth        | Dev-stub `X-Parent-Id` header                                                          | Sign in with Apple (NFR-2) + COPPA verifiable consent (F-1, NFR-3)                      |
+| AI / images | Stub `StubAIProvider` on both sides (no network, deterministic)                       | Real LLM + image model behind same `AIProvider` shape, with batching, $0.50/session cap |
 
 Why scaffold in Expo when the PRD calls for native Swift: it lets you experience the full child + parent flow (mood → conversation → storybook → sharing → red-zone path) on a browser at `localhost` and on an iPad via Expo Go in minutes, without a Mac toolchain or a backend. The PRD's Swift/SwiftUI direction is right for production — for performance, App Store Kids Category eligibility, and access to Speech / AVFoundation / FamilyControls — but the scaffold's job is fastest-possible review of the product idea, not shippable code.
 
@@ -40,6 +41,22 @@ EXPO_OFFLINE=1 npm start
 ```
 
 `EXPO_OFFLINE=1` skips Expo CLI's remote dependency-version check, which expects internet egress. Drop it when running with normal egress.
+
+### Connect to the backend (optional)
+
+The local dev backend (FastAPI + Postgres + Redis + MinIO) lives in `backend/` and runs via Docker Compose at the repo root:
+
+```bash
+docker compose up --build       # Postgres :5432, Redis :6379, MinIO :9000, API :8000
+```
+
+Then point the Expo client at it:
+
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:8000 EXPO_OFFLINE=1 npm run web
+```
+
+The splash screen shows a green "Connected to …" banner when the API is reachable, grey "Local-only" when `EXPO_PUBLIC_API_URL` is unset, or red if the URL is set but unreachable. Parent setup mirrors parent + child + trusted-circle to the API on save; the rest of the screens still talk only to the local `AsyncStorage` store (see `backend/README.md` "What's wired vs. follow-up").
 
 ## What's wired up
 

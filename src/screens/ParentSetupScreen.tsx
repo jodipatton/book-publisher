@@ -7,6 +7,7 @@ import { theme } from '../ui/theme';
 import { useStore } from '../state';
 import { useNav } from '../navigation';
 import type { TrustedCircleMember } from '../types';
+import { api, isApiEnabled } from '../api/client';
 
 const id = () => Math.random().toString(36).slice(2, 10);
 
@@ -51,13 +52,65 @@ export function ParentSetupScreen() {
   const removeMember = (mid: string) => setMembers((m) => m.filter((x) => x.id !== mid));
 
   const canSave = parentName.trim().length > 0 && childName.trim().length > 0;
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const onSave = () => {
-    dispatch({ type: 'setParent', parent: { id: state.parent?.id ?? id(), displayName: parentName.trim() } });
+  const onSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    let parentId = state.parent?.id ?? id();
+    let childId = state.child?.id ?? id();
+    let resolvedMembers = members;
+
+    // When the API flag is set, mirror the setup to the backend. The local
+    // store is still the UI's source of truth — it just becomes a cache
+    // hydrated from the server. Production replaces this with proper
+    // login + sync, but for the scaffold this is enough to prove the
+    // feature flag works end-to-end.
+    if (isApiEnabled()) {
+      try {
+        // Idempotent enough for the scaffold: only create on first save.
+        if (!state.parent) {
+          const p = await api.createParent(parentName.trim());
+          parentId = p.id;
+        }
+        if (!state.child) {
+          const c = await api.createChild({
+            display_name: childName.trim(),
+            age_years: ageNum,
+            persona_id: 'dog',
+            session_time_limit_minutes: sessionLimitNum,
+          });
+          childId = c.id;
+        }
+        // Trusted circle: add only members that don't already have a server id
+        // (in our state we tag locally-created ids; server ids are UUIDs).
+        const newOnes = members.filter((m) => !/^[0-9a-f-]{36}$/.test(m.id));
+        const created = await Promise.all(
+          newOnes.map((m) =>
+            api.addTrustedMember({
+              display_name: m.displayName,
+              relationship_label: m.relationship,
+              email: m.email,
+              receives_safety_alerts: m.receivesSafetyAlerts,
+            }),
+          ),
+        );
+        // Replace temp ids with server ids in the local state.
+        const newMap = new Map(newOnes.map((m, i) => [m.id, created[i].id]));
+        resolvedMembers = members.map((m) => ({ ...m, id: newMap.get(m.id) ?? m.id }));
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : String(e));
+        setSaving(false);
+        return;
+      }
+    }
+
+    dispatch({ type: 'setParent', parent: { id: parentId, displayName: parentName.trim() } });
     dispatch({
       type: 'setChild',
       child: {
-        id: state.child?.id ?? id(),
+        id: childId,
         displayName: childName.trim(),
         ageYears: ageNum,
         personaId: state.child?.personaId ?? 'dog',
@@ -66,7 +119,8 @@ export function ParentSetupScreen() {
         consecutiveAmberSessions: state.child?.consecutiveAmberSessions ?? 0,
       },
     });
-    dispatch({ type: 'setTrustedCircle', members });
+    dispatch({ type: 'setTrustedCircle', members: resolvedMembers });
+    setSaving(false);
     navigate(state.child?.personaId ? { name: 'home' } : { name: 'personaPick' });
   };
 
@@ -149,7 +203,18 @@ export function ParentSetupScreen() {
       </Card>
 
       <View style={{ height: 12 }} />
-      <Button label={canSave ? 'Save and continue' : 'Add a name to continue'} onPress={onSave} disabled={!canSave} />
+      {saveError ? <Text style={styles.errText}>Couldn't save: {saveError}</Text> : null}
+      <Button
+        label={
+          saving
+            ? 'Saving…'
+            : canSave
+              ? 'Save and continue'
+              : 'Add a name to continue'
+        }
+        onPress={onSave}
+        disabled={!canSave || saving}
+      />
     </Screen>
   );
 }
@@ -186,4 +251,5 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
   checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: theme.colors.primary },
   checkboxOn: { backgroundColor: theme.colors.primary },
+  errText: { color: theme.colors.danger, fontSize: 13, marginBottom: 8 },
 });
