@@ -11,6 +11,13 @@ export const theme = {
     warning: '#E0A04A',
     border: '#EADBC4',
   },
+  fonts: {
+    // Storybook serif. Loaded async via expo-font in App.tsx.
+    // Falls back to platform serif until loaded.
+    body: 'Lora_400Regular',
+    bodyItalic: 'Lora_400Regular_Italic',
+    bodyBold: 'Lora_700Bold',
+  },
   radius: 18,
   spacing: (n: number) => n * 8,
 };

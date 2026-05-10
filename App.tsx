@@ -1,6 +1,12 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import {
+  Lora_400Regular,
+  Lora_400Regular_Italic,
+  Lora_700Bold,
+  useFonts,
+} from '@expo-google-fonts/lora';
 
 import { StoreProvider, useStore } from './src/state';
 import { NavProvider, useNav } from './src/navigation';
@@ -32,6 +38,14 @@ function Root() {
   const { ready } = useStore();
   // Boot-time API hydration. No-op when EXPO_PUBLIC_API_URL is unset.
   const apiHydrate = useApiHydrate();
+  // Storybook serif. Until loaded the platform serif fallback is used; we
+  // don't gate the UI on font load because it would push the splash by
+  // ~200ms on slow networks and the app is still readable in the meantime.
+  const [fontsLoaded] = useFonts({
+    Lora_400Regular,
+    Lora_400Regular_Italic,
+    Lora_700Bold,
+  });
 
   if (!ready || apiHydrate.hydrating) {
     return (
@@ -40,6 +54,8 @@ function Root() {
       </View>
     );
   }
+  // `fontsLoaded` is referenced so React re-renders once the font lands.
+  void fontsLoaded;
   return <Router />;
 }
 
