@@ -17,6 +17,7 @@ import type {
   Claim,
   Condition,
   DocumentReference,
+  EhrConnection,
   EngagementQueueEntry,
   HedisResult,
   MeasureGap,
@@ -142,7 +143,8 @@ export const repos = {
   documents: make<DocumentReference>('documents'),
   hedisResults: make<HedisResult>('hedisResults'),
   gaps: make<MeasureGap>('gaps'),
-  engagement: make<EngagementQueueEntry>('engagementQueue')
+  engagement: make<EngagementQueueEntry>('engagementQueue'),
+  ehrConnections: make<EhrConnection>('ehrConnections')
 };
 
 // ---- Seed summary (single object, not a collection) -----------------------
