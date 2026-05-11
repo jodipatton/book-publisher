@@ -98,14 +98,38 @@ data/
   store/                     JSON files written by the repository layer
 ```
 
-### Swapping in Firestore
+### Storage backends
 
-Every read/write goes through `repos.<collection>` in
-`src/lib/data/repository.ts`. To switch to Firestore, write a
-`FirestoreCollectionRepo<T>` that implements the same `CollectionRepo<T>`
-interface and have the `repos` factory pick the implementation off
-`process.env.ECDS_DATA_BACKEND`. The engine, UI, and agent code are
-oblivious to the backend.
+The repository layer in `src/lib/data/repository.ts` picks one of two
+backends at module init. The engine, seed, UI, and agent code never need
+to know which one is active:
+
+- **JSON files** (default, local dev) — one JSON file per collection
+  under `data/store/`. Zero setup.
+- **Vercel KV / Upstash Redis** — auto-detected when `KV_REST_API_URL`
+  is set in the environment. Each collection is stored as one JSON-array
+  value under a key like `ecds:claims`. Required for Vercel deployment
+  because Vercel's serverless filesystem is read-only at runtime.
+
+#### Deploying to Vercel with KV
+
+1. Deploy once with `vercel` (the app will run but Seed/Run won't persist
+   between requests — the dashboard will show a yellow banner pointing
+   this out).
+2. In the Vercel dashboard for your project, open **Storage → Create
+   Database → Upstash for Redis (KV)**. Attach it to the project.
+3. Vercel automatically adds `KV_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`
+   to the project's environment variables.
+4. Run `vercel --prod` to redeploy.
+5. On the live site, click **Seed synthetic data** then **Run ECDS engine**.
+   Data now persists in KV, the banner disappears, and the dashboard says
+   "Connected to Vercel KV".
+
+#### Adding Firestore later
+
+Write a `makeFirestoreRepo<T>(collection)` factory implementing the same
+`CollectionRepo<T>` interface and extend the backend picker at the top of
+`repository.ts`. No engine or UI changes required.
 
 ## Scope notes (per PRD)
 
