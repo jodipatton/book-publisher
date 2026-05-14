@@ -39,12 +39,15 @@ export function DesignSvg(props: Props) {
   const hemDelta = useMemo(() => hemDeltaFromNotes(variant.params.notes), [variant.params.notes]);
 
   const isSketch = renderMode === 'sketch';
-  const bodyStroke = isSketch ? '#2d2a26' : '#000';
-  const bodyFill = isSketch ? 'transparent' : '#e9d4c1';
+  const bodyStroke = isSketch ? '#bfb6a8' : '#7d6e5c';
+  const bodyFill = isSketch ? '#f4ecdb' : '#e9d4c1';
   const garmentStroke = isSketch ? '#1a1a1a' : '#3a2e2a';
-  const garmentFill = isSketch ? 'transparent' : palette.fill;
-  const garmentShadow = isSketch ? 'transparent' : palette.shadow;
+  // Opaque fill in sketch mode too — otherwise the body underneath shows
+  // through the garment outline.
+  const garmentFill = isSketch ? '#fbfaf6' : palette.fill;
+  const garmentShadow = isSketch ? 'rgba(0,0,0,0.04)' : palette.shadow;
   const strokeWidth = isSketch ? 1.4 : 0.8;
+  const tierFill = isSketch ? '#fbfaf6' : palette.tier;
 
   // Build the hem at the variant-specific drop length, then push it
   // up or down by the cumulative hem-correction delta.
@@ -149,7 +152,7 @@ export function DesignSvg(props: Props) {
             <path
               key={`tier-${i}`}
               d={tierPath(layout, garment, hemY, i + 1, variant.params.layerCount)}
-              fill={isSketch ? 'transparent' : palette.tier}
+              fill={tierFill}
               stroke={garmentStroke}
               strokeWidth={strokeWidth}
               opacity={isSketch ? 1 : 0.85}
@@ -277,10 +280,16 @@ function computeGarment(variant: DesignVariant, layout: Layout): GarmentLayout {
   }
   // Category controls skirt drop. Tops stop at waist; pants split into
   // legs (handled by body underneath).
-  let skirtDrop = layout.inseamY - layout.hipY - 30;
-  if (p.category === 'top' || p.category === 'coat') skirtDrop = 30;
-  if (p.category === 'skirt') skirtDrop = (layout.inseamY - layout.hipY) * 0.6;
-  if (p.category === 'pants' || p.category === 'jumpsuit') skirtDrop = layout.inseamY - layout.hipY - 16;
+  // Default: full-length dress reaches the floor (just past the inseam)
+  // so the body's legs are covered. Tiered/a-line dresses get extra drop
+  // for a sweep silhouette.
+  const legLen = layout.inseamY - layout.hipY;
+  let skirtDrop = legLen + 8;
+  if (p.silhouette === 'tiered' || p.silhouette === 'a-line') skirtDrop = legLen + 14;
+  if (p.category === 'top') skirtDrop = 30;
+  if (p.category === 'coat') skirtDrop = legLen * 0.65;
+  if (p.category === 'skirt') skirtDrop = legLen * 0.6;
+  if (p.category === 'pants' || p.category === 'jumpsuit') skirtDrop = legLen - 6;
 
   let sleeveLength = 0;
   switch (p.sleeve) {

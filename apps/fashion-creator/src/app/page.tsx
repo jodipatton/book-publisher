@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BodyCapture } from '@/components/BodyCapture';
 import { VoiceInput } from '@/components/VoiceInput';
 import { InspirationInput } from '@/components/InspirationInput';
-import { DesignSvg, type GarmentRegion, type TouchGesture } from '@/components/DesignSvg';
+import { type GarmentRegion, type TouchGesture } from '@/components/DesignSvg';
+import { DesignImage } from '@/components/DesignImage';
 import { TasteProfilePanel } from '@/components/TasteProfilePanel';
 
 import { defaultPetiteBody } from '@/lib/bodyGeometry';
@@ -218,7 +219,7 @@ export default function VoiceAtelierPage() {
                         {selectedIdx === idx ? 'Selected' : 'Choose'}
                       </button>
                     </header>
-                    <DesignSvg
+                    <DesignImage
                       variant={variant}
                       body={body}
                       renderMode={renderMode}
