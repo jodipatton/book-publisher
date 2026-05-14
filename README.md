@@ -1,184 +1,116 @@
-# Bedtime Storybook Companion
+# VoiceAtelier
 
-> Working title. The conversation is the sanctuary. The storybook is the bridge.
+> Your proportions are the canvas. Your voice is the design tool.
 
-iPad-native app for children ages 5–10 that turns a child's private nightly conversation with a persistent AI companion into a personalized, fully illustrated 5–8 page storybook the child can choose to share with a parent or trusted family member as bedtime reading.
+Voice-driven fashion design app. Reads a user's body proportions from a single
+photo and renders original outfit designs from spoken descriptions, optionally
+blended with an inspiration image. Renders in photorealistic and traditional
+fashion-sketch modes, and learns each user's idiolect — what *they* mean by
+"soft" or "flowy" — in a persistent taste profile.
 
-This repo is the MVP scaffold. **Production target is iPad-only per PRD scope** (`docs/prd.md` §Scope). The web build runs on `localhost` for development and review only — it is not the shipped product.
-
-> **Status:** scaffold. AI conversation and illustrations are stubbed behind a swappable `AIProvider`. The safety classifier is a regex stub awaiting clinician review. **Full PRD v1.0 captured at `docs/prd.md`** — vision, problem, scope, F-1..F-20, NFR-1..NFR-4, technical architecture, data model, pricing, phasing, risks, iOS specifics, offline UX, accessibility, analytics, research foundation, competitive landscape.
-
-### Architecture divergence: scaffold vs. production target
-
-This is intentional and called out so it's not a surprise:
-
-| Layer       | Scaffold (this repo)                                                                  | PRD v1.0 production target                                                              |
-| ----------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Frontend    | Expo (React Native + RN Web), TypeScript                                              | Native Swift / SwiftUI on iPadOS                                                        |
-| Backend     | **Python + FastAPI in `backend/`** (Phase One foundation)                             | Same — Node.js or Python + FastAPI                                                      |
-| Database    | **PostgreSQL 16, Redis 7, MinIO** via `docker compose up`                             | PostgreSQL, Redis, S3-compatible — same shapes, real cloud                              |
-| Hosting     | Local Docker only                                                                      | AWS or GCP, US regions for COPPA residency. Terraform / CDK is the next step           |
-| Auth        | Dev-stub `X-Parent-Id` header                                                          | Sign in with Apple (NFR-2) + COPPA verifiable consent (F-1, NFR-3)                      |
-| AI / images | Stub `StubAIProvider` on both sides (no network, deterministic)                       | Real LLM + image model behind same `AIProvider` shape, with batching, $0.50/session cap |
-
-Why scaffold in Expo when the PRD calls for native Swift: it lets you experience the full child + parent flow (mood → conversation → storybook → sharing → red-zone path) on a browser at `localhost` and on an iPad via Expo Go in minutes, without a Mac toolchain or a backend. The PRD's Swift/SwiftUI direction is right for production — for performance, App Store Kids Category eligibility, and access to Speech / AVFoundation / FamilyControls — but the scaffold's job is fastest-possible review of the product idea, not shippable code.
+**Status:** scaffold per PRD v1.0. The AI / ML stages (Whisper or Deepgram for
+speech-to-text, IP-Adapter for style transfer, Stable Diffusion + ControlNet for
+body-aware generation) sit behind narrow interfaces with deterministic stubs so
+the full voice-refine-regenerate loop runs end-to-end on localhost without a
+single API key.
 
 ## Run it
 
-The same Expo source builds for **web** (localhost), **iOS Simulator**, and **iPad via Expo Go**.
-
 ```bash
 npm install
-
-# Web — open in a browser at http://localhost:8081 (dev/review only)
-EXPO_OFFLINE=1 npm run web
-
-# iOS Simulator — production target (macOS only)
-EXPO_OFFLINE=1 npm run ios
-
-# iPad over the local network — scan the QR with Expo Go
-EXPO_OFFLINE=1 npm start
+npm run dev          # http://localhost:3000
+npm test             # vitest suite
+npm run build        # production Next.js build
 ```
-
-`EXPO_OFFLINE=1` skips Expo CLI's remote dependency-version check, which expects internet egress. Drop it when running with normal egress.
-
-### Connect to the backend (optional)
-
-The local dev backend (FastAPI + Postgres + Redis + MinIO) lives in `backend/` and runs via Docker Compose at the repo root:
-
-```bash
-docker compose up --build       # Postgres :5432, Redis :6379, MinIO :9000, API :8000
-```
-
-Then point the Expo client at it:
-
-```bash
-EXPO_PUBLIC_API_URL=http://localhost:8000 EXPO_OFFLINE=1 npm run web
-```
-
-The splash screen shows a green "Connected to …" banner when the API is reachable, grey "Local-only" when `EXPO_PUBLIC_API_URL` is unset, or red if the URL is set but unreachable.
-
-When connected, the full child + parent loop round-trips through the API: parent setup, persona pick, conversation (every turn classified server-side, F-10 red-zone path included), 5–8 page storybook generation, sharing to the trusted circle, library, and the parent dashboard's safety events with `Acknowledge`. AsyncStorage is just a local cache hydrated from the server on boot. See `backend/README.md` "What's wired vs. follow-up" for the remaining items.
-
-## What's wired up
-
-End-to-end flows that actually work in the scaffold:
-
-- **Splash + parent disclosure.** Adult sees the privacy and red-zone safety contract before the child uses the app, including the 988 line.
-- **Parent setup (F-1, F-14, F-18).** Parent name, child name (5–10), child age, **session time limit** (5–60 min), plus a parent-curated **trusted sharing circle** with name, relationship, **email** (for the F-15 invited account), and per-member opt-in to red-zone alerts.
-- **Persona pick (F-2).** Curated set of four companions: Biscuit the Dog, Auntie Wren, Fern the Plant, and a TBD-pending-clinical-advisory placeholder (Pip the Owl). Selection persists across sessions and is changeable.
-- **Mood check-in (F-3).** The four spec'd icons — heart, sunshine, cloud, storm — with accessible labels for assistive technology.
-- **Conversation (F-4).** Child chats with the companion in a private bubble UI. Stub provider gives mood-aware replies with a deliberate "thinking" delay. Age-tier branching is structurally ready in the AI input but not yet differentiated in the stub.
-- **Storybook generation (F-5, F-6).** 5–8 illustrated pages from the transcript — title, page text, persona-as-narrator. Page count is clamped to the 5..8 band even on short conversations. Each page renders as a **composed scene**: gradient sky tinted by mood, layered hill silhouettes, drifting butterflies / fireflies / leaves, a celestial body (sun by day, moon at the close), and the persona character in the foreground with scene-specific props (frog, swing, lake, etc.) chosen from `image_prompt` keywords. Pages sit inside a paper-textured **storybook frame** with a thin inner border, decorative corner flourishes, and a `1 of 6`–style page indicator. Body text uses the **Lora** serif loaded via `@expo-google-fonts/lora`. Real image generation drops in behind the same `image_prompt` field when ready.
-- **Sharing (F-7, F-8).** Child decides whether to share, and with whom, from the trusted circle. Anything not shared lives in a private library. Real notification/email delivery to circle members is stubbed.
-- **Library.** All books — shared and private — with sharing state visible.
-- **Parent dashboard.** Shows only what the child shared with a parent-relationship circle member, plus any red-zone alerts.
-- **Three-tier safety system (F-9, F-10, F-11).**
-  - **green** — no concern detected.
-  - **amber** — patterns to track over time (loneliness, negative self-talk, persistent distress). Does **not** break privacy. Consecutive-amber count tracked on the child profile; PRD F-11 elevates to a clinical-advisory review queue at ≥5.
-  - **red** — severe danger (suicidal ideation, self-harm, abuse disclosure, fear of caregiver, secrecy with adult). Surfaces the storybook to the parent regardless of the child's sharing choice, with AI-generated conversation starters, the **988 Suicide and Crisis Lifeline** call/chat links, and a disclaimer. The child's persona tells the child, in their voice, that someone who loves them is going to help.
-- **Local persistence.** Everything saves to `AsyncStorage` so a child's library survives a refresh.
 
 ## Architecture
 
 ```
-App.tsx                    router, providers
 src/
-  types.ts                 domain types (zones: green | amber | red)
-  state.tsx                store + reducer + AsyncStorage hydration
-  navigation.tsx           tiny stack navigator (no react-navigation needed for MVP)
-  personas.ts              curated personas (F-2) + four moods (F-3)
-  safety.ts                three-tier classifier + parent conversation-starter generator
-  storage.ts               AsyncStorage helpers
-  ai/
-    provider.ts            AIProvider interface + DI seam
-    stubProvider.ts        offline deterministic provider; clamps to 5..8 pages
-  ui/
-    Screen.tsx, Card.tsx, Button.tsx, theme.ts
-  screens/
-    SplashScreen.tsx
-    ParentSetupScreen.tsx
-    PersonaPickScreen.tsx
-    HomeScreen.tsx
-    ConversationScreen.tsx
-    StorybookScreen.tsx
-    ShareScreen.tsx
-    LibraryScreen.tsx
-    ParentDashboardScreen.tsx
-docs/
-  prd.md                   PRD v1.0 (truncated at NFR-3)
+  app/
+    layout.tsx            shell
+    page.tsx              main flow — body → voice → inspiration → two variants → refine
+    globals.css           styles
+  components/
+    BodyCapture.tsx       full-body photo upload → BodyDimensions
+    VoiceInput.tsx        Web Speech API + free-text fallback
+    InspirationInput.tsx  reference image upload + IP-Adapter blend dial
+    DesignSvg.tsx         SVG renderer for variant + body, dual render modes
+    TasteProfilePanel.tsx accumulated phrase → parameter mappings
+  lib/
+    types.ts              domain types
+    fashionpedia.ts       natural-language → structured params, Fashionpedia-aligned
+    speechToText.ts       Whisper / Deepgram interface + Web Speech fallback
+    inspirationStyle.ts   IP-Adapter style extraction (canvas-based stub)
+    bodyGeometry.ts       body dimension extraction (vendor-stubbed)
+    designGenerator.ts    two-variant generation, conflict detection, refinement
+    tasteProfile.ts       localStorage-backed taste profile
+  __tests__/              vitest specs
 ```
 
-### Replacing the stub AI
+### Pipeline seams
 
-`AIProvider` (`src/ai/provider.ts`) has two methods: `companionReply` and `generateStorybook`. Implement against a real model (Claude is a natural fit for the persona voice; an image model fills `StorybookPage.imagePrompt`) and inject in `getAIProvider()`. No screen code needs to change.
+| Stage              | Interface                            | Production target                                       |
+| ------------------ | ------------------------------------ | ------------------------------------------------------- |
+| Speech-to-text     | `transcribeAudio(audio)`             | Whisper (OpenAI API) or Deepgram                        |
+| Body geometry      | `extractBodyDimensions(file)`        | Outfii / PixRibe / VEXA (final vendor pending)          |
+| Inspiration style  | `extractStyleEssence(file)`          | IP-Adapter (`ip-adapter_sd15.bin`, `ip-adapter-plus`)   |
+| Design generation  | `generateDesignSet(opts)`            | Stable Diffusion / Flux + ControlNet on body silhouette |
+| Refinement         | `applyRefinement(variant, instr)`    | Idea2Img / MIRA-style self-refine loop                  |
+| Taste profile      | `loadTasteProfile / saveTasteProfile`| Firestore behind Firebase Auth                          |
 
-Per-session AI cost ceiling per PRD F-20: **$0.50**. The provider interface is the right place to enforce that budget — token counting, image-call limits, and a graceful-wrap fallback all live behind it.
+Each stage has a stub that keeps the flow working offline. Production replaces
+the implementation without touching screen code.
 
-### Replacing the safety classifier
+## Flow
 
-`classifyTextForSafety(text) → SafetySignal` lives in `src/safety.ts`. Zone semantics:
+1. **Body capture (FR-1..FR-5)** — upload one full-body photo. Dimensions come
+   back from the vendor stub. The `isPetite` flag fires under 5'4" and the rest
+   of the pipeline respects it (no rounding to standard sample sizes).
+2. **Voice description (FR-6..FR-9)** — speak via the mic button (Web Speech
+   API where supported) or type directly. The interpreter maps natural language
+   onto Fashionpedia-aligned parameters: silhouette, drape, fabric weight,
+   color, neckline, sleeve, layer count.
+3. **Inspiration image (FR-10..FR-12)** — optional. Upload anything visual.
+   IP-Adapter extracts dominant palette + mood. A blend dial controls the
+   voice/reference balance from 0.0 to 1.0.
+4. **Two-variant generation (FR-13..FR-18)** — every "Generate" produces two
+   distinct variants on the same body. When voice and reference *conflict*
+   (e.g., "make it flowy" pointed at heavy tweed) the two variants resolve in
+   opposite directions and a banner flags the disagreement.
+5. **Render toggle (FR-15..FR-17)** — Photoreal vs. Sketch, single tap.
+6. **Voice + touch refinement (FR-19..FR-21)** — speak corrections to a
+   selected variant or tap a region (neckline, sleeves, hem, body) to adjust
+   by gesture. Each refinement keeps prior context — iterative rounds compose.
+7. **Taste profile (FR-23..FR-25)** — every correction and every variant
+   selection feeds the profile. Subsequent generations consult it before
+   falling back to the default vocabulary, so first-generation alignment
+   improves over sessions. View / reset in the right rail.
 
-- **green** — no concern detected.
-- **amber** — track over time. Does not break privacy. F-11 elevation at ≥5 consecutive sessions.
-- **red** — F-10 mandatory disclosure protocol fires.
+## Status vs. PRD v1.0
 
-The regex list is intentionally small and is not a clinical instrument. PRD targets per §Success Metrics:
+**Wired**
 
-- Red-zone false-positive rate **< 5%** vs. clinician-tagged corpus
-- Red-zone false-negative rate **< 1%**, biased toward sensitivity
-- 100% red-zone events surface to parent in **< 60s**
+- FR-1..FR-5 body geometry capture + display (vendor stub)
+- FR-6..FR-9 voice capture (Web Speech API + STT interface), Fashionpedia parsing
+- FR-10..FR-12 inspiration image extraction + blend dial
+- FR-13..FR-18 two-variant generation, conflict detection, dual render modes
+- FR-19..FR-21 voice + touch refinement, iterative composition
+- FR-23..FR-25 persistent taste profile with reset
+- FR-26 variant selection
+- NFR-1..NFR-3 latency targets (stub responses are well under the budgets)
+- NFR-5 client-side data stays in localStorage; no exfiltration
 
-Production replaces the regex with a clinician-reviewed classifier behind the same one-call signature.
+**Stubbed pending production wiring**
 
-## Try the red-zone path
-
-In the conversation screen, type a phrase like `"I want to die"` or `"my stepdad hits me"`, then generate the storybook. Visit the **Parent dashboard** from the splash screen — the alert, conversation starters, and 988 call/chat links will be visible, and the book is surfaced regardless of the child's sharing choice. (Stub demo of the threshold behavior; do not interpret the regex as a clinical instrument.)
-
-## Known gaps vs. PRD v1.0
-
-The full PRD is now captured in `docs/prd.md`. Items still missing or stubbed:
-
-**Production architecture (PRD §Technical Architecture)**
-
-1. **Native Swift / SwiftUI iPadOS app** — scaffold is Expo. Reimplement frontend in Swift before Phase Three.
-2. **Backend API (Node or FastAPI)** — none. Session orchestration, persona state, storybook assembly, trusted-circle, safety routing all run client-side.
-3. **PostgreSQL + JSON columns**, **Redis**, **S3 + CDN** — none provisioned.
-4. **US-region hosting (AWS or GCP)** — not provisioned; pin region in IaC when standing up.
-
-**Compliance and platform (PRD §NFR-3, §NFR-4, §iOS Specifics)**
-
-5. **COPPA verifiable parental consent (F-1, NFR-3)** — credit card transaction verification not implemented. Required under the FTC's updated rules effective June 2025; non-compliance fines up to $50K per violation. Engage a COPPA consultant or pursue kidSAFE certification before launch.
-6. **Encryption at rest (NFR-3)** — `AsyncStorage` is not encrypted on web or iOS. Move child-touching fields to `expo-secure-store` or a server-side store with field-level encryption before launch. Flagged inline in `src/storage.ts`.
-7. **Sign in with Apple (NFR-2)** — auth not implemented.
-8. **Apple Kids Category compliance (NFR-4, §iOS Specifics)** — parental gate on outbound links from child surfaces, Apple-only analytics framework, Family Sharing for the family tier, Ask to Buy. Apple's updated age-rating questionnaire takes effect fall 2025.
-
-**Core flows (PRD §Functional Requirements)**
-
-9. **Trusted-circle account provisioning (F-15)** — emails captured during setup; invitation, account creation, and view-only access not built.
-10. **Trusted-circle delivery (F-8)** — push / email / mobile-web-view delivery is stubbed; child's sharing choices are saved locally only.
-11. **Persona persistence across sessions (F-13)** — personality, quirks, conversation history. Currently only the persona ID persists.
-12. **Reading-level adaptation (F-16)** — `readingLevel` field exists; no adaptation logic.
-13. **Photo-informed character description (F-6)** — no upload, no character-consistency layer.
-14. **Real image generation (F-6)** — pages render as emoji + palette placeholders. Production needs a locked illustration style + IP-Adapter or reference-image conditioning to keep the persona visually consistent.
-15. **Collaborative session mode (F-12)** — invite button is a placeholder; AI facilitator/step-back role-shift not implemented.
-16. **Voice in / out (F-4)** for the visual-first 5–7 tier; Apple Speech + AVFoundation in production.
-17. **Connectivity-loss handling (F-19)** — local conversation save + persona-consistent retry message ("I'm still working on our story…").
-18. **Per-session $0.50 cap (F-20)** — interface seam exists; enforcement (token / image budgets, graceful wrap) does not.
-19. **Clinical advisory review queue (F-11)** — `consecutiveAmberSessions` counter tracked on the child profile; the queue itself is not built.
-20. **MoodEntry as a separate record (PRD §Data Model)** — currently mood lives on `Session` only; PRD calls for a standalone `MoodEntry` with optional post-conversation mood for longitudinal pattern detection.
-
-**Pricing, business, ops (PRD §Pricing, §Risks, §Analytics)**
-
-21. **Subscription tiers** — Free / Standard $9.99 / Family $14.99 not implemented. No StoreKit, no entitlements gating session count, persona set, or trusted-circle size.
-22. **Content moderation pipeline** — secondary moderation pass on generated narrative before it lands in the storybook (per §Risks: AI Hallucination).
-23. **First-party aggregated analytics** (PRD §Analytics Respecting Child Privacy) — none. Per-child data must never surface in dashboards except aggregated and anonymized.
-24. **Soft-launch instrumentation** — clinician-review pipeline, false-positive labeling, retention / completion / sharing-rate cohort dashboards, color-blind testing for mood icons.
-25. **Accessibility (PRD §Accessibility)** — partial. WCAG 2.1 AA target needs full VoiceOver pass on parent surfaces, Dynamic Type, high-contrast mode, haptics, color-blind-safe mood palette, synthesized-speech reader for storybook text.
-26. **Graceful sunsetting** (PRD §Risks: Over-Attachment) — "goodbye book" flow when a family cancels; not implemented.
-
-These are tracked so the next pass has a concrete punch list.
+- Real Whisper / Deepgram calls (interface in `src/lib/speechToText.ts`)
+- Real IP-Adapter inference (interface in `src/lib/inspirationStyle.ts`)
+- Real diffusion + ControlNet generation (interface in `src/lib/designGenerator.ts`)
+- Real body-measurement vendor (interface in `src/lib/bodyGeometry.ts`)
+- Firebase Auth + Firestore for cross-device profile persistence
+- Self-refinement loop (FR-22) — interface ready; logic deferred
+- Merge across variants (FR-27) — selection works; element-level merge UI deferred
 
 ## License
 
-Proprietary — Olive / Bedtime Storybook Companion.
+Proprietary — Olive / VoiceAtelier.
