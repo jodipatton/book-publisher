@@ -1,9 +1,12 @@
-# dependencies
+# dependencies (top-level and per-workspace)
 node_modules/
+**/node_modules/
 
 # next.js
 .next/
+**/.next/
 out/
+**/out/
 build/
 dist/
 
@@ -22,6 +25,8 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+**/*.tsbuildinfo
 
 # vitest / test artifacts
 coverage/
+**/coverage/

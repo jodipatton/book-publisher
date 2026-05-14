@@ -1,24 +1,15 @@
 {
-  "name": "voiceatelier",
+  "name": "book-publisher-workspace",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "test": "vitest run",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "next": "15.5.18",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
-  },
-  "devDependencies": {
-    "@types/node": "20.11.0",
-    "@types/react": "18.3.3",
-    "@types/react-dom": "18.3.0",
-    "typescript": "5.4.5",
-    "vitest": "1.6.0"
+    "dev": "npm --workspace fashion-creator run dev",
+    "build": "npm --workspace fashion-creator run build",
+    "start": "npm --workspace fashion-creator run start",
+    "test": "npm --workspace fashion-creator run test",
+    "lint": "npm --workspace fashion-creator run lint"
   }
 }
