@@ -1,15 +1,5 @@
 {
-  "name": "book-publisher-workspace",
+  "name": "book-publisher",
   "version": "0.1.0",
-  "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
-  "scripts": {
-    "dev": "npm --workspace fashion-creator run dev",
-    "build": "npm --workspace fashion-creator run build",
-    "start": "npm --workspace fashion-creator run start",
-    "test": "npm --workspace fashion-creator run test",
-    "lint": "npm --workspace fashion-creator run lint"
-  }
+  "private": true
 }
